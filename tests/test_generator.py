@@ -14,8 +14,6 @@ from graphix.opengraph import OpenGraph
 from graphix.random_objects import rand_gate
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from numpy.random import Generator
 
 
