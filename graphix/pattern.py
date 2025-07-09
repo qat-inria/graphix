@@ -306,7 +306,7 @@ class Pattern:
         """Execute standardization of the pattern.
 
         This algorithm sort the commands in the following order:
-        `N`, `E`, `M`, `C`, `Z`, `X`.
+        `N`, `E`, `M`, `Z`, `X`, `C`.
         """
         n_list = []
         e_list = []
@@ -353,21 +353,20 @@ class Pattern:
                     # The original domain should not be mutated
                     new_cmd.s_domain = new_cmd.s_domain ^ s_domain  # noqa: PLR6104
                 m_list.append(new_cmd)
-            elif cmd.kind == CommandKind.Z:
-                add_correction_domain(z_dict, cmd.node, cmd.domain)
-            elif cmd.kind == CommandKind.X:
-                add_correction_domain(x_dict, cmd.node, cmd.domain)
-            elif cmd.kind == CommandKind.C:
-                # If some `X^sZ^t` have been applied to the node, compute `X^s'Z^t'`
-                # such that `CX^sZ^t = X^s'Z^t'C` since the Clifford command will
-                # be applied first (i.e., in right-most position).
-                t_domain = z_dict.pop(cmd.node, set())
-                s_domain = x_dict.pop(cmd.node, set())
-                domains = cmd.clifford.conj.commute_domains(Domains(s_domain, t_domain))
+            # Use of `==` here for mypy
+            elif cmd.kind == CommandKind.X or cmd.kind == CommandKind.Z:  # noqa: PLR1714
+                if cmd.kind == CommandKind.X:
+                    s_domain = cmd.domain
+                    t_domain = set()
+                else:
+                    s_domain = set()
+                    t_domain = cmd.domain
+                domains = c_dict.get(cmd.node, Clifford.I).commute_domains(Domains(s_domain, t_domain))
                 if domains.t_domain:
-                    z_dict[cmd.node] = domains.t_domain
+                    add_correction_domain(z_dict, cmd.node, domains.t_domain)
                 if domains.s_domain:
-                    x_dict[cmd.node] = domains.s_domain
+                    add_correction_domain(x_dict, cmd.node, domains.s_domain)
+            elif cmd.kind == CommandKind.C:
                 # Each pattern command is applied by left multiplication: if a clifford `C`
                 # has been already applied to a node, applying a clifford `C'` to the same
                 # node is equivalent to apply `C'C` to a fresh node.
@@ -376,9 +375,9 @@ class Pattern:
             *n_list,
             *e_list,
             *m_list,
-            *(command.C(node=node, clifford=clifford_gate) for node, clifford_gate in c_dict.items()),
             *(command.Z(node=node, domain=domain) for node, domain in z_dict.items()),
             *(command.X(node=node, domain=domain) for node, domain in x_dict.items()),
+            *(command.C(node=node, clifford=clifford_gate) for node, clifford_gate in c_dict.items()),
         ]
 
     def is_standard(self) -> bool:
@@ -1234,7 +1233,6 @@ class Pattern:
         prepared = set(self.input_nodes)
         measured: set[int] = set()
         new: list[Command] = []
-        c_list = []
         cmd: Command
 
         for cmd in meas_commands:
@@ -1256,14 +1254,12 @@ class Pattern:
             if cmd.kind == CommandKind.N and cmd.node not in prepared:
                 new.append(command.N(node=cmd.node))
             elif (
-                cmd.kind == CommandKind.E and all(node in self.output_nodes for node in cmd.nodes)
-            ) or cmd.kind == CommandKind.C:
+                (cmd.kind == CommandKind.E and all(node in self.output_nodes for node in cmd.nodes))
+                or cmd.kind == CommandKind.C
+                or cmd.kind in {CommandKind.Z, CommandKind.X}
+            ):
                 new.append(cmd)
-            elif cmd.kind in {CommandKind.Z, CommandKind.X}:  # Add corrections
-                c_list.append(cmd)
 
-        # c_list = self.correction_commands()
-        new.extend(c_list)
         self.__seq = new
 
     def max_space(self) -> int:
