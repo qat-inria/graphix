@@ -165,6 +165,119 @@ class Pattern:
         self.clear()
         self.extend(cmds)
 
+    def compose(
+        self, other: Pattern, mapping: Mapping[int, int], preserve_order: bool = False
+    ) -> tuple[Pattern, dict[int, int]]:
+        r"""Compose two patterns by merging subsets of outputs from `self` and a subset of inputs of `other`, and relabeling the nodes of `other` that were not merged.
+
+        Parameters
+        ----------
+        other : Pattern
+            Pattern to be composed with `self`.
+        mapping: Mapping[int, int]
+            Partial relabelling of the nodes in `other`, with `keys` and `values` denoting the old and new node labels, respectively.
+        preserve_order: bool
+            Boolean flag controlling the ordering of the output nodes in the returned pattern.
+
+        Returns
+        -------
+        p: Pattern
+            composed pattern
+        mapping_complete: dict[int, int]
+            Complete relabelling of the nodes in `other`, with `keys` and `values` denoting the old and new node label, respectively.
+
+        Notes
+        -----
+        Let's denote :math:`(I_j, O_j, V_j, S_j)` the ordered set of inputs and outputs, the computational space and the sequence of commands of pattern :math:`P_j`, respectively, with :math:`j = 1` for pattern `self` and :math:`j = 2` for pattern `other`. Let's denote :math:`P` the resulting pattern with :math:`(I, O, V, S)`.
+        Let's denote :math:`K, U` the sets of `keys` and `values` of `mapping`, and :math:`M_1 = O_1 \cap U` and :math:`M_2 = O_2 \cap K` respectively the set of merged outputs and inputs.
+
+        The pattern composition requires that
+        - :math:`K \subseteq V_2`.
+        - For a pair :math:`(k, v) \in (K, U)`
+            - :math:`U \cap V_1 \setminus O_1 = \emptyset`. If :math:`v \in O_1`, then :math:`k \in I_2`, otherwise an error is raised.
+            - :math:`v` can always satisfy :math:`v \notin V_1`, thereby allowing a custom relabelling.
+
+        The returned pattern follows this convention:
+        - Nodes of pattern `other` not specified in `mapping` (i.e., :math:`V_2 \cap K^c`) are relabelled in ascending order.
+        - The sequence of the resulting pattern is :math:`S = S_2 S_1`, where nodes in :math:`S_2` are relabelled according to `mapping`.
+        - :math:`I = I_1 \cup (I_2 \setminus M_2)`.
+        - :math:`O = (O_1 \setminus M_1) \cup O_2`.
+        - Input (and, respectively, output) nodes in the returned pattern have the order of the pattern `self` followed by those of the pattern `other`. Merged nodes are removed.
+        - If `preserve_order = True` and :math:`|M_1| = |O_2|`, then the outputs of the returned pattern are the outputs of pattern `self`, where the nth merged output is replaced by the nth output of pattern `other` instead.
+        """
+        nodes_p1_lst, _ = self.get_graph()
+        nodes_p1: set[int] = set(nodes_p1_lst) | self.results.keys()  # Results contain preprocessed Pauli nodes
+        nodes_p2_lst, _ = other.get_graph()
+        nodes_p2: set[int] = set(nodes_p2_lst) | other.results.keys()
+
+        if not mapping.keys() <= nodes_p2:
+            raise ValueError("Keys of `mapping` must correspond to the nodes of `other`.")
+
+        if len(mapping.values()) != len(set(mapping.values())):
+            raise ValueError("Values of `mapping` contain duplicates.")
+
+        if set(mapping.values()) & nodes_p1 - set(self.__output_nodes):
+            raise ValueError("Values of `mapping` must not contain measured nodes of pattern `self`.")
+
+        for k, v in mapping.items():
+            if v in self.__output_nodes and k not in other.input_nodes:
+                raise ValueError(
+                    f"Mapping {k} -> {v} is not valid. {v} is an output of pattern `self` but {k} is not an input of pattern `other`."
+                )
+
+        shift = max(*nodes_p1, *mapping.values()) + 1
+        mapping_sequential = {
+            node: i for i, node in enumerate(sorted(nodes_p2 - mapping.keys()), start=shift)
+        }  # assigns new labels to nodes in other not specified in mapping
+
+        mapping_complete = {**mapping, **mapping_sequential}
+
+        mapped_inputs = [mapping_complete[n] for n in other.input_nodes]
+        mapped_outputs = [mapping_complete[n] for n in other.output_nodes]
+        mapped_results = {mapping_complete[n]: m for n, m in other.results.items()}
+
+        merged = set(mapping.values()) & set(self.__output_nodes)
+
+        inputs = self.__input_nodes + [n for n in mapped_inputs if n not in merged]
+
+        if preserve_order and len(other.output_nodes) != len(merged):
+            warnings.warn(
+                "`preserve_order = True` ignored because the number of merged nodes and outputs of pattern `other` are different.",
+                stacklevel=2,
+            )
+            preserve_order = False
+
+        if preserve_order:
+            mapped_iter = iter(mapped_outputs)
+            outputs = [next(mapped_iter) if n in merged else n for n in self.__output_nodes]
+        else:
+            outputs = [n for n in self.__output_nodes if n not in merged] + mapped_outputs
+
+        def update_command(cmd: Command) -> Command:
+            cmd_new = copy.copy(cmd)
+
+            if cmd_new.kind is CommandKind.E:
+                i, j = cmd_new.nodes
+                cmd_new.nodes = (mapping_complete[i], mapping_complete[j])
+            elif cmd_new.kind is not CommandKind.T:
+                cmd_new.node = mapping_complete[cmd_new.node]
+                if cmd_new.kind is CommandKind.M:
+                    cmd_new.s_domain = {mapping_complete[i] for i in cmd_new.s_domain}
+                    cmd_new.t_domain = {mapping_complete[i] for i in cmd_new.t_domain}
+                # Use of `==` here for mypy
+                elif cmd_new.kind == CommandKind.X or cmd_new.kind == CommandKind.Z or cmd_new.kind == CommandKind.S:  # noqa: PLR1714
+                    cmd_new.domain = {mapping_complete[i] for i in cmd_new.domain}
+
+            return cmd_new
+
+        seq = self.__seq + [update_command(c) for c in other]
+
+        results = {**self.results, **mapped_results}
+        p = Pattern(input_nodes=inputs, output_nodes=outputs, cmds=seq)
+        p.results = results
+
+        return p, mapping_complete
+
     @property
     def input_nodes(self) -> list[int]:
         """List input nodes."""
@@ -239,6 +352,7 @@ class Pattern:
             self.__seq == other.__seq
             and self.__input_nodes == other.__input_nodes
             and self.__output_nodes == other.__output_nodes
+            and self.results == other.results
         )
 
     def to_ascii(
