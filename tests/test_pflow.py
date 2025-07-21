@@ -64,13 +64,12 @@ class TestPflow:
         row_idx_ref = dict(zip([0, 1, 2, 3, 4], range(5)))
         col_idx_ref = dict(zip([1, 2, 3, 4, 5, 6], range(6)))
 
-        for i_ref, row in enumerate(row_nodes_ref):
-            for j_rej, col in enumerate(col_nodes_ref):
-                i = row_nodes.index(row)
-                j = col_nodes.index(col)
+        for node_row, i_ref in row_idx_ref.items():
+            for node_col, j_ref in col_idx_ref.items():
+                i = row_idx[node_row]
+                j = col_idx[node_col]
 
-                assert radj.data[i, j] == radj_ref.data[i_ref, j_rej]
-
+                assert radj.data[i, j] == radj_ref.data[i_ref, j_ref]
 
     def test_get_plfow_matrices_1(self) -> None:
         og = self.get_graph_pflow_unequal_io()
