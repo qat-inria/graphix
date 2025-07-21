@@ -67,7 +67,6 @@ extend-ignore = [
   "DOC",     # Docstring
   "E501",    # Line too long
   "EM10",    # Raise string
-  "PLC0415", # Import not at the top level
   "PLR1702", # Too many nests
   "PLW1641", # __hash__ missing
   "PT011",   # pytest raises too broad
@@ -150,7 +149,6 @@ exclude = [
   '^graphix/sim/density_matrix\.py$',
   '^graphix/sim/statevec\.py$',
   '^graphix/sim/tensornet\.py$',
-  '^graphix/transpiler\.py$',
   '^graphix/visualization\.py$',
   '^tests/test_density_matrix\.py$',
   '^tests/test_gflow\.py$',
@@ -161,7 +159,6 @@ exclude = [
   '^tests/test_statevec\.py$',
   '^tests/test_statevec_backend\.py$',
   '^tests/test_tnsim\.py$',
-  '^tests/test_transpiler\.py$',
   '^tests/test_visualization\.py$',
 ]
 follow_imports = "silent"
@@ -204,6 +201,11 @@ exclude = [
   "tests/test_transpiler.py",
   "tests/test_visualization.py",
 ]
+reportUnknownArgumentType = "information"
+reportUnknownLambdaType = "information"
+reportUnknownMemberType = "information"
+reportUnknownParameterType = "information"
+reportUnknownVariableType = "information"
 
 [tool.coverage.report]
 exclude_also = [

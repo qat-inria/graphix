@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Method for `OpenGraph`: `compose`
+
 - #277: Methods for pretty-printing `Pattern`: `to_ascii`,
   `to_unicode`, `to_latex`.
 
@@ -26,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - #277: The method `Pattern.print_pattern` is now deprecated.
+- #261: Moved all device interface functionalities to an external library and removed their implementation from this library.
 
 ## [0.3.1] - 2025-04-21
 
