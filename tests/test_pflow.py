@@ -1,15 +1,14 @@
-from typing import TYPE_CHECKING
+from __future__ import annotations
+import enum
 
 import networkx as nx
-import numpy as np
+from numpy.random import Generator
 
 from graphix.fundamentals import Plane
+from graphix.linalg import MatGF2
 from graphix.measurements import Measurement
 from graphix.opengraph import OpenGraph
-from graphix.pflow import _get_pflow_matrices
-
-if TYPE_CHECKING:
-    from numpy.random import Generator
+from graphix.pflow import _get_pflow_matrices, _get_reduced_adj
 
 
 class TestPflow:
@@ -41,6 +40,45 @@ class TestPflow:
         meas = {i: Measurement(angle, plane) for (i, angle), plane in zip(meas_angles.items(), meas_planes.values())}
 
         return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
-    
 
-    def get_graph_pflow_unequal_io(self, fx_rng: Generator) -> OpenGraph:
+    def get_graph_pflow_unequal_io(self) -> OpenGraph:
+        """Create a graph which has pflow with unequal number of inputs and outputs. Example from Fig. 1 in Mitosek and Backens, 2024 (arXiv:2410.23439).
+
+        Returns
+        -------
+        OpenGraph: :class:`graphix.opengraph.OpenGraph`
+        """
+        graph: nx.Graph[int] = nx.Graph([(0, 2), (2, 4), (3, 4), (4, 6), (1, 4), (1, 6), (2, 3), (3, 5), (2, 6), (3, 6)])
+        inputs = [0]
+        outputs = [5, 6]
+        meas = {0: Measurement(0.1, Plane.XY), 1: Measurement(0.1, Plane.XZ), 2: Measurement(0.5, Plane.YZ), 3: Measurement(0.1, Plane.XY), 4: Measurement(0, Plane.XZ)}
+
+        return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
+
+    def test_get_reduced_adj(self) -> None:
+        og = self.get_graph_pflow_unequal_io()
+        radj, row_idx, col_idx = _get_reduced_adj(og)
+
+        radj_ref = MatGF2([[0, 1, 0, 0, 0, 0], [0, 0, 0, 1, 0, 1], [0, 0, 1, 1, 0, 1], [0, 1, 0, 1, 1, 1], [1, 1, 1, 0, 0, 1]])
+
+        row_idx_ref = dict(zip([0, 1, 2, 3, 4], range(5)))
+        col_idx_ref = dict(zip([1, 2, 3, 4, 5, 6], range(6)))
+
+        for i_ref, row in enumerate(row_nodes_ref):
+            for j_rej, col in enumerate(col_nodes_ref):
+                i = row_nodes.index(row)
+                j = col_nodes.index(col)
+
+                assert radj.data[i, j] == radj_ref.data[i_ref, j_rej]
+
+
+    def test_get_plfow_matrices_1(self) -> None:
+        og = self.get_graph_pflow_unequal_io()
+
+        flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(og)
+
+        flow_demand_matrix_ref = MatGF2([[0, 1, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0], [0, 1, 1, 1, 0, 1], [0, 1, 0, 1, 1, 1], [0, 0, 0, 1, 0, 0]])
+        order_demand_matrix_ref = MatGF2([[0, 0, 0, 0, 0, 0], [1, 0, 0, 1, 0, 1], [0, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0]])
+
+        assert flow_demand_matrix == flow_demand_matrix_ref
+        assert order_demand_matrix == order_demand_matrix_ref

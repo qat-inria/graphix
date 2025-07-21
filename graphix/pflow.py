@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import networkx as nx
 import numpy as np
 
@@ -7,7 +9,7 @@ from graphix.linalg import MatGF2
 from graphix.opengraph import OpenGraph
 
 
-def _get_reduced_adj(og: OpenGraph) -> tuple[MatGF2, list[int], list[int]]:
+def _get_reduced_adj(og: OpenGraph) -> tuple[MatGF2, dict[int, int], dict[int, int]]:
     r"""Return reduced adjacency matrix (RAdj) of the input open graph.
 
     Parameters
@@ -19,10 +21,10 @@ def _get_reduced_adj(og: OpenGraph) -> tuple[MatGF2, list[int], list[int]]:
     -------
     adj_red: MatGF2
         Reduced adjacency matrix.
-    row_nodes: list[int]
-        An ordered list of the non-output nodes according to the rows of `adj_red`.
-    col_nodes: list[int]
-        An ordered list of the non-input nodes according to the columns of `adj_red`.
+    row_idx: dict[int, int]
+        Mapping between the non-output nodes (keys) and the rows of `adj_red` (values).
+    col_idx: dict[int, int]
+        Mapping between the non-input nodes (keys) and the columns of `adj_red` (values).
 
     Notes
     -----
@@ -33,26 +35,25 @@ def _get_reduced_adj(og: OpenGraph) -> tuple[MatGF2, list[int], list[int]]:
     See Definition 3.3 in Mitosek and Backens, 2024 (arXiv:2410.23439)
     """
     graph = og.inside
-    inputs = og.inputs
-    outputs = og.outputs
-    nodes = list(graph.nodes)
-    row_nodes = nodes.copy()
-    col_nodes = nodes.copy()
+    inputs = set(og.inputs)
+    outputs = set(og.outputs)
+    nodes = set(graph.nodes)
 
-    adj = nx.adjacency_matrix(graph, nodelist=nodes, dtype=np.int64)
-    adj_red = MatGF2(adj.toarray())
+    row_idx = {node: i for i, node in enumerate(nodes - outputs)}
+    col_idx = {node: j for j, node in enumerate(nodes - inputs)}
 
-    for i in inputs:
-        idx = nodes.index(i)
-        col_nodes.pop(idx)
-        adj_red.remove_col(idx)
+    adj_red = MatGF2(np.zeros((len(row_idx), len(col_idx)), dtype=np.int64))
 
-    for o in outputs:
-        idx = nodes.index(o)
-        row_nodes.pop(idx)
-        adj_red.remove_row(idx)
+    for n1, n2 in graph.edges:
+        if n1 in row_idx and n2 in col_idx:
+            i, j = row_idx[n1], col_idx[n2]
+            adj_red.data[i, j] = 1
+        if n2 in row_idx and n1 in col_idx:
+            i, j = row_idx[n2], col_idx[n1]
+            adj_red.data[i, j] = 1
 
-    return adj_red, row_nodes, col_nodes
+    # Maybe interesing to add new attribute to MatGF2 for labelling rows and cols ?
+    return adj_red, row_idx, col_idx
 
 
 def _get_pflow_matrices(og: OpenGraph) -> tuple[MatGF2, MatGF2]:
