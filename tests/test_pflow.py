@@ -1,14 +1,58 @@
 from __future__ import annotations
-import enum
+
 
 import networkx as nx
+import numpy as np
 from numpy.random import Generator
 
 from graphix.fundamentals import Plane
 from graphix.linalg import MatGF2
 from graphix.measurements import Measurement
 from graphix.opengraph import OpenGraph
-from graphix.pflow import _get_pflow_matrices, _get_reduced_adj
+from graphix.pflow import _get_pflow_matrices, _get_reduced_adj, _is_dag
+from typing import NamedTuple
+
+import pytest
+
+# class DAGTestCase(NamedTuple):
+#     matrix: MatGF2
+#     is_dag: bool
+
+
+# def prepare_test_matrix_dag() -> list[DAGTestCase]:
+#     return [
+#         # empty matrix
+#         DAGTestCase(
+#             MatGF2(np.array([[]], dtype=np.int_)),
+#             False,
+#         ),
+#         # diagonal matrix
+#         DAGTestCase(
+#             MatGF2(np.diag(np.ones(10)).astype(int)),
+#             False,
+#         ),
+#         # non-square matrix
+#         DAGTestCase(
+#             MatGF2(np.array([[1, 0, 1], [0, 1, 0]], dtype=np.int_)),
+#             False,
+#         ),
+#         # square matrix non-dag
+#         DAGTestCase(
+#             MatGF2(np.array([[0, 1, 0, 0], [0, 0, 1, 0], [1, 0, 0, 0], [0, 0, 0, 0]], dtype=np.int_)),
+#             False,
+#         ),
+#         # DAG matrix 1
+#         DAGTestCase(
+#             MatGF2(np.array([[0, 0, 0, 0, 0], [1, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 1, 1, 0, 0], [0, 0, 0, 0, 0]], dtype=np.int_)),
+#             True,
+#         ),
+#         # DAG matrix 2
+#         DAGTestCase(
+#             MatGF2(np.array([[0, 0, 0, 0, 0], [0, 0, 0, 1, 1], [1, 0, 0, 0, 1], [0, 0, 1, 0, 1], [1, 0, 0, 0, 0]], dtype=np.int_)),
+#             True,
+#         ),
+#     ]
+
 
 
 class TestPflow:
@@ -81,3 +125,11 @@ class TestPflow:
 
         assert flow_demand_matrix == flow_demand_matrix_ref
         assert order_demand_matrix == order_demand_matrix_ref
+
+
+
+
+    # @pytest.mark.parametrize("test_case", prepare_test_matrix_dag())
+    # def test_is_dag(self, test_case: DAGTestCase) -> None:
+    #     mat = test_case.matrix
+    #     assert _is_dag(mat) == test_case.is_dag

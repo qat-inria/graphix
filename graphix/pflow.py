@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import networkx as nx
 import numpy as np
+from sympy import Matrix
 
 from graphix.fundamentals import Axis, Plane
 from graphix.gflow import get_pauli_nodes
@@ -11,6 +12,30 @@ from graphix.linalg import MatGF2
 
 if TYPE_CHECKING:
     from graphix.opengraph import OpenGraph
+
+# NOT WORKING
+# def _is_dag(mat: MatGF2) -> bool:
+#     """Check if matrix represents a DAG."""
+
+#     m, n = mat.data.shape
+#     if m != n:
+#         return False
+
+#     all_nodes = set(range(m))
+
+#     while all_nodes:
+#         visited: set[int] = set()
+#         queue = {all_nodes.pop()}
+#         while queue:
+#             n = queue.pop()
+#             if n in visited:
+#                 return False
+#             visited |= {n}
+#             neigh = set(mat.data[:, n].nonzero()[0])
+#             queue |= neigh
+#             all_nodes -= {n}
+
+#     return True
 
 
 def _get_reduced_adj(og: OpenGraph) -> tuple[MatGF2, dict[int, int], dict[int, int]]:
@@ -121,7 +146,7 @@ def _get_pflow_matrices(og: OpenGraph) -> tuple[MatGF2, MatGF2]:
     return flow_demand_matrix, order_demand_matrix
 
 
-def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2] | None:
+def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int]] | None:
     r"""Construct correction-function matrix :math:`C` and product of the order-demand matrix :math:`N` and the correction-function matrix, :math:`NC`.
 
     Parameters
@@ -135,6 +160,8 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2] | None:
         Matrix encoding the correction function.
     ordering_matrix: MatGF2
         Matrix enconding the partial ordering between nodes.
+    dag: nx.DiGraph[int]
+        Directed acyclical graph represented by the ordering matrix   
     or `None`
         if the input open graph does not have flow.
 
@@ -149,10 +176,76 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2] | None:
         - The matrix :math:`NC` is not a DAG.
      then, `og` does not have Pauli flow.
 
-    See Definitions 3.4, 3.5 and 3.6, Lemma 3.12, and Algorithm 2 in Mitosek and Backens, 2024 (arXiv:2410.23439)
+    See Definitions 3.4, 3.5 and 3.6, Lemma 3.12, Theorem 3.1, and Algorithm 2 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
     flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(og)
 
-    
+    correction_matrix = flow_demand_matrix.right_inverse()  # C matrix
 
-    return None
+    if correction_matrix is None:
+        return None  # The flow-demand matrix is not invertible, therefore there's no flow.
+
+    ordering_matrix = order_demand_matrix @ correction_matrix  # NC matrix
+
+    # NetworkX uses the convention that a non-zero A(i,j) element represents a link i -> j.
+    # We use the opposite convention, hence the transpose.   
+    dag = nx.from_numpy_array(ordering_matrix.data.T, create_using=nx.DiGraph)
+    
+    if not nx.is_directed_acyclic_graph(dag):
+        return None  # The NC matrix is not a DAG, therefore there's no flow.
+
+    return correction_matrix, ordering_matrix, dag
+
+
+def _find_pflow_general(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int]] | None:
+    pass
+
+
+def _algebraic2pflow(correction_matrix: MatGF2, dag: nx.DiGraph[int]) -> tuple[dict[int, set[int]], dict[int, int]]:
+    r"""Transform a Pauli flow in its algebraic form (correction matrix and DAG) into a Pauli flow in its standard form (correction function and partial order).
+    
+    Parameters
+    ----------
+    correction_matrix: MatGF2
+        Matrix encoding the correction function.
+    dag: nx.DiGraph[int]
+        Directed acyclical graph represented by the ordering matrix  
+
+    Returns
+    -------
+    pf: dict[int, set[int]]
+        Pauli flow correction function. pf[i] is the set of qubits to be corrected for the measurement of qubit i.
+    l_k: dict[int, int]
+        Partial order between corrected qubits. l_k[d] is a node set of depth d.
+
+    Notes
+    -----
+    - The correction matrix :math:`C` is an :math:`(n - n_I) \times (n - n_O)` matrix related to the correction function :math:`c(v) = \{u \in \overline{I}|C_{u,v} = 1\}`, where :math:`\overline{I}` are the non-input nodes of `og`. In other words, the column :math:`v` of :math:`C` encodes the correction set of :math:`v`, :math:`c(v)`.
+
+    - The Pauli flow's ordering :math:`<_c` is the transitive closure of :math:`\lhd_c`, where the latter is related to the adjacency matrix of `dag` :math:`NC` as :math:`v \lhd_c w \Leftrightarrow (NC)_{w,v} = 1`, for :math:`v, w, \in \overline{O}` two non-output nodes of `og`.
+
+    See Definition 3.6, Lemma 3.12, and Theorem 3.1 in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    """
+
+
+def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | None:
+
+    ni = len(og.inputs)
+    no = len(og.outputs)
+
+    if ni > no:
+        return None
+    if ni == no:
+        pflow_algebraic = _find_pflow_simple(og)
+    else:
+        pflow_algebraic = _find_pflow_general(og)
+    
+    if pflow_algebraic is None:
+        return None
+    
+    correction_matrix, ordering_matrix, dag = pflow_algebraic
+
+    return _algebraic2pflow(correction_matrix, dag)
+
+
+

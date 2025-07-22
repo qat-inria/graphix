@@ -315,7 +315,6 @@ class MatGF2:
         return x, kernels
 
     #  This function is adapted from #294
-    #  TODO: add tests
     def right_inverse(self) -> MatGF2 | None:
         r"""Return any right inverse of the matrix.
 
