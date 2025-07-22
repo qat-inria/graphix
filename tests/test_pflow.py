@@ -9,7 +9,7 @@ from graphix.fundamentals import Plane
 from graphix.linalg import MatGF2
 from graphix.measurements import Measurement
 from graphix.opengraph import OpenGraph
-from graphix.pflow import _get_pflow_matrices, _get_reduced_adj, _is_dag
+from graphix.pflow import _get_pflow_matrices, _get_reduced_adj
 from typing import NamedTuple
 
 import pytest
@@ -100,28 +100,28 @@ class TestPflow:
         return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
 
     def test_get_reduced_adj(self) -> None:
-        og = self.get_graph_pflow_unequal_io()
-        radj, row_idx, col_idx = _get_reduced_adj(og)
 
         radj_ref = MatGF2([[0, 1, 0, 0, 0, 0], [0, 0, 0, 1, 0, 1], [0, 0, 1, 1, 0, 1], [0, 1, 0, 1, 1, 1], [1, 1, 1, 0, 0, 1]])
+        row_idx_ref = dict(zip([0, 1, 2, 3, 4], range(5)))
+        col_idx_ref = dict(zip([1, 2, 3, 4, 5, 6], range(6)))
+
+        og = self.get_graph_pflow_unequal_io()
+        radj = _get_reduced_adj(og, row_idx=row_idx_ref, col_idx=col_idx_ref)
+
+        assert radj == radj_ref
+
+    def test_get_plfow_matrices_1(self) -> None:
+        
+        flow_demand_matrix_ref = MatGF2([[0, 1, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0], [0, 1, 1, 1, 0, 1], [0, 1, 0, 1, 1, 1], [0, 0, 0, 1, 0, 0]])
+        order_demand_matrix_ref = MatGF2([[0, 0, 0, 0, 0, 0], [1, 0, 0, 1, 0, 1], [0, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0]])
 
         row_idx_ref = dict(zip([0, 1, 2, 3, 4], range(5)))
         col_idx_ref = dict(zip([1, 2, 3, 4, 5, 6], range(6)))
 
-        for node_row, i_ref in row_idx_ref.items():
-            for node_col, j_ref in col_idx_ref.items():
-                i = row_idx[node_row]
-                j = col_idx[node_col]
-
-                assert radj.data[i, j] == radj_ref.data[i_ref, j_ref]
-
-    def test_get_plfow_matrices_1(self) -> None:
         og = self.get_graph_pflow_unequal_io()
 
-        flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(og)
+        flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(og, row_idx=row_idx_ref, col_idx=col_idx_ref)
 
-        flow_demand_matrix_ref = MatGF2([[0, 1, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0], [0, 1, 1, 1, 0, 1], [0, 1, 0, 1, 1, 1], [0, 0, 0, 1, 0, 0]])
-        order_demand_matrix_ref = MatGF2([[0, 0, 0, 0, 0, 0], [1, 0, 0, 1, 0, 1], [0, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0]])
 
         assert flow_demand_matrix == flow_demand_matrix_ref
         assert order_demand_matrix == order_demand_matrix_ref

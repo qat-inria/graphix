@@ -38,23 +38,23 @@ if TYPE_CHECKING:
 #     return True
 
 
-def _get_reduced_adj(og: OpenGraph) -> tuple[MatGF2, dict[int, int], dict[int, int]]:
+def _get_reduced_adj(og: OpenGraph, row_idx: dict[int, int], col_idx: dict[int, int]) -> MatGF2:
     r"""Return reduced adjacency matrix (RAdj) of the input open graph.
 
     Parameters
     ----------
     og : OpenGraph
         Open graph whose RAdj is to be computed.
-
-    Returns
-    -------
-    adj_red: MatGF2
-        Reduced adjacency matrix.
     row_idx: dict[int, int]
         Mapping between the non-output nodes (keys) and the rows of `adj_red` (values).
     col_idx: dict[int, int]
         Mapping between the non-input nodes (keys) and the columns of `adj_red` (values).
 
+    Returns
+    -------
+    adj_red: MatGF2
+        Reduced adjacency matrix.
+    
     Notes
     -----
     The adjacency matrix of a graph :math:`Adj_G` is a :math:`n \times n` matrix
@@ -64,12 +64,6 @@ def _get_reduced_adj(og: OpenGraph) -> tuple[MatGF2, dict[int, int], dict[int, i
     See Definition 3.3 in Mitosek and Backens, 2024 (arXiv:2410.23439)
     """
     graph = og.inside
-    inputs = set(og.inputs)
-    outputs = set(og.outputs)
-    nodes = set(graph.nodes)
-
-    row_idx = {node: i for i, node in enumerate(nodes - outputs)}
-    col_idx = {node: j for j, node in enumerate(nodes - inputs)}
 
     adj_red = MatGF2(np.zeros((len(row_idx), len(col_idx)), dtype=np.int64))
 
@@ -81,17 +75,20 @@ def _get_reduced_adj(og: OpenGraph) -> tuple[MatGF2, dict[int, int], dict[int, i
             i, j = row_idx[n2], col_idx[n1]
             adj_red.data[i, j] = 1
 
-    # Maybe interesing to add new attribute to MatGF2 for labelling rows and cols ?
-    return adj_red, row_idx, col_idx
+    return adj_red
 
 
-def _get_pflow_matrices(og: OpenGraph) -> tuple[MatGF2, MatGF2]:
+def _get_pflow_matrices(og: OpenGraph, row_idx: dict[int, int], col_idx: dict[int, int]) -> tuple[MatGF2, MatGF2]:
     r"""Construct flow-demand and order-demand matrices.
 
     Parameters
     ----------
     og : OpenGraph
         Open graph whose flow-demand and order-demand matrices are to be computed.
+    row_idx: dict[int, int]
+        Mapping between the non-output nodes (keys) and the rows of the flow-demand and order-demand matrices (values).
+    col_idx: dict[int, int]
+        Mapping between the non-input nodes (keys) and the columns of the flow-demand and order-demand matrices (values).
 
     Returns
     -------
@@ -102,7 +99,8 @@ def _get_pflow_matrices(og: OpenGraph) -> tuple[MatGF2, MatGF2]:
     -----
     See Definitions 3.4 and 3.5, and Algorithm 1 in Mitosek and Backens, 2024 (arXiv:2410.23439)
     """
-    flow_demand_matrix, row_idx, col_idx = _get_reduced_adj(og)
+
+    flow_demand_matrix = _get_reduced_adj(og, row_idx, col_idx)
     order_demand_matrix = flow_demand_matrix.copy()
 
     inputs_set = set(og.inputs)
@@ -146,7 +144,7 @@ def _get_pflow_matrices(og: OpenGraph) -> tuple[MatGF2, MatGF2]:
     return flow_demand_matrix, order_demand_matrix
 
 
-def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int]] | None:
+def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int], dict[int, int], dict[int, int]] | None:
     r"""Construct correction-function matrix :math:`C` and product of the order-demand matrix :math:`N` and the correction-function matrix, :math:`NC`.
 
     Parameters
@@ -161,7 +159,12 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int]] 
     ordering_matrix: MatGF2
         Matrix enconding the partial ordering between nodes.
     dag: nx.DiGraph[int]
-        Directed acyclical graph represented by the ordering matrix   
+        Directed acyclical graph represented by the ordering matrix.
+    non_input_idx: dict[int, int]
+        Mapping between the non-input nodes (keys) and the indices of the matrices involved in the calculation (values).
+    non_output_idx: dict[int, int]
+        Mapping between the non-output nodes (keys) and the indices of the matrices involved in the calculation (values).   
+    
     or `None`
         if the input open graph does not have flow.
 
@@ -178,7 +181,13 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int]] 
 
     See Definitions 3.4, 3.5 and 3.6, Lemma 3.12, Theorem 3.1, and Algorithm 2 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
-    flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(og)
+
+    # TODO: It would be interesting to add new attribute to MatGF2 for labelling rows and cols
+    nodes = set(og.inside.nodes)
+    non_inputs_idx = {node: j for j, node in enumerate(nodes - set(og.inputs))}
+    non_outputs_idx = {node: i for i, node in enumerate(nodes - set(og.outputs))}
+
+    flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(og, row_idx=non_outputs_idx, col_idx=non_inputs_idx)
 
     correction_matrix = flow_demand_matrix.right_inverse()  # C matrix
 
@@ -194,14 +203,14 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int]] 
     if not nx.is_directed_acyclic_graph(dag):
         return None  # The NC matrix is not a DAG, therefore there's no flow.
 
-    return correction_matrix, ordering_matrix, dag
+    return correction_matrix, ordering_matrix, dag, non_inputs_idx, non_outputs_idx
 
 
-def _find_pflow_general(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int]] | None:
+def _find_pflow_general(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int], dict[int, int], dict[int, int]] | None:
     pass
 
 
-def _algebraic2pflow(correction_matrix: MatGF2, dag: nx.DiGraph[int]) -> tuple[dict[int, set[int]], dict[int, int]]:
+def _algebraic2pflow(correction_matrix: MatGF2, dag: nx.DiGraph[int], row_idx: dict[int, int], col_idx: dict[int, int]) -> tuple[dict[int, set[int]], dict[int, int]]:
     r"""Transform a Pauli flow in its algebraic form (correction matrix and DAG) into a Pauli flow in its standard form (correction function and partial order).
     
     Parameters
@@ -209,7 +218,11 @@ def _algebraic2pflow(correction_matrix: MatGF2, dag: nx.DiGraph[int]) -> tuple[d
     correction_matrix: MatGF2
         Matrix encoding the correction function.
     dag: nx.DiGraph[int]
-        Directed acyclical graph represented by the ordering matrix  
+        Directed acyclical graph represented by the ordering matrix.
+    row_idx: dict[int, int]
+        Mapping between the non-input nodes (keys) and the rows of the correction matrix (values).
+    col_idx: dict[int, int]
+        Mapping between the non-output nodes (keys) and the columns of the correction matrix (values).  
 
     Returns
     -------
@@ -227,6 +240,15 @@ def _algebraic2pflow(correction_matrix: MatGF2, dag: nx.DiGraph[int]) -> tuple[d
     See Definition 3.6, Lemma 3.12, and Theorem 3.1 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
 
+    pf: dict[int, set[int]]= {}
+    for node, i in col_idx.items():
+        correction_set = {row_idx[j] for j in correction_matrix.data[:, i].nonzero()[0]}
+        pf[node] = correction_set
+    
+    
+
+    return (pf, )
+
 
 def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | None:
 
@@ -243,9 +265,9 @@ def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
     if pflow_algebraic is None:
         return None
     
-    correction_matrix, ordering_matrix, dag = pflow_algebraic
+    correction_matrix, _, dag, non_inputs_idx, non_outputs_idx = pflow_algebraic
 
-    return _algebraic2pflow(correction_matrix, dag)
+    return _algebraic2pflow(correction_matrix, dag, row_idx=non_inputs_idx, col_idx=non_outputs_idx)
 
 
 
