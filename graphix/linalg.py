@@ -331,8 +331,7 @@ class MatGF2:
         A right inverse :math:`B` of a matrix :math:`A` satisfies :math:`AB = I` where :math:`I` is the identity matrix.
         """
         m, n = self.data.shape
-        rank = self.get_rank()  # TODO: this should be a property of MatGF2
-        if m > n or m != rank:
+        if m > n or m != self.get_rank():  # TODO: rank should be a property of MatGF2
             return None  # Non-invertible
 
         ident = galois.GF2.Identity(m)
@@ -341,5 +340,4 @@ class MatGF2:
         rinv = galois.GF2.Zeros((n, m))
         rinv[:m, :m] = red[:, -m:]
 
-        #assert np.all(self.data @ rinv == galois.GF2.Identity(m))
         return MatGF2(rinv)
