@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 import networkx as nx
@@ -37,7 +38,7 @@ if TYPE_CHECKING:
 #     return True
 
 
-def _get_reduced_adj(og: OpenGraph, row_idx: dict[int, int], col_idx: dict[int, int]) -> MatGF2:
+def _get_reduced_adj(og: OpenGraph, row_idx: Mapping[int, int], col_idx: Mapping[int, int]) -> MatGF2:
     r"""Return reduced adjacency matrix (RAdj) of the input open graph.
 
     Parameters
@@ -77,7 +78,7 @@ def _get_reduced_adj(og: OpenGraph, row_idx: dict[int, int], col_idx: dict[int, 
     return adj_red
 
 
-def _get_pflow_matrices(og: OpenGraph, row_idx: dict[int, int], col_idx: dict[int, int]) -> tuple[MatGF2, MatGF2]:
+def _get_pflow_matrices(og: OpenGraph, row_idx: Mapping[int, int], col_idx: Mapping[int, int]) -> tuple[MatGF2, MatGF2]:
     r"""Construct flow-demand and order-demand matrices.
 
     Parameters
@@ -176,7 +177,7 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int], 
     """
     # TODO: It would be interesting to add new attribute to MatGF2 for labelling rows and cols
     nodes = set(og.inside.nodes)
-    non_inputs_idx = {node: j for j, node in enumerate(nodes - set(og.inputs))}
+    non_inputs_idx = {node: i for i, node in enumerate(nodes - set(og.inputs))}
     non_outputs_idx = {node: i for i, node in enumerate(nodes - set(og.outputs))}
 
     flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(og, row_idx=non_outputs_idx, col_idx=non_inputs_idx)
@@ -184,6 +185,7 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int], 
     correction_matrix = flow_demand_matrix.right_inverse()  # C matrix
 
     if correction_matrix is None:
+        print("C none")
         return None  # The flow-demand matrix is not invertible, therefore there's no flow.
 
     ordering_matrix = order_demand_matrix @ correction_matrix  # NC matrix
@@ -193,6 +195,7 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int], 
     dag = nx.from_numpy_array(ordering_matrix.data.T, create_using=nx.DiGraph)
 
     if not nx.is_directed_acyclic_graph(dag):
+        print("Dag none")
         return None  # The NC matrix is not a DAG, therefore there's no flow.
 
     return correction_matrix, ordering_matrix, dag, non_inputs_idx, non_outputs_idx
@@ -203,12 +206,18 @@ def _find_pflow_general(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int],
 
 
 def _algebraic2pflow(
-    correction_matrix: MatGF2, dag: nx.DiGraph[int], row_idx: dict[int, int], col_idx: dict[int, int]
+    og: OpenGraph,
+    correction_matrix: MatGF2,
+    dag: nx.DiGraph[int],
+    row_idx: Mapping[int, int],
+    col_idx: Mapping[int, int],
 ) -> tuple[dict[int, set[int]], dict[int, int]]:
     r"""Transform a Pauli flow in its algebraic form (correction matrix and DAG) into a Pauli flow in its standard form (correction function and partial order).
 
     Parameters
     ----------
+    og: OpenGraph
+        Open graph whose Pauli flow is being calculated.
     correction_matrix: MatGF2
         Matrix encoding the correction function.
     dag: nx.DiGraph[int]
@@ -223,7 +232,7 @@ def _algebraic2pflow(
     pf: dict[int, set[int]]
         Pauli flow correction function. pf[i] is the set of qubits to be corrected for the measurement of qubit i.
     l_k: dict[int, int]
-        Partial order between corrected qubits. l_k[d] is a node set of depth d.
+        Partial order between corrected qubits, such that the pair (`key`, `value`) corresponds to (node, depth).
 
     Notes
     -----
@@ -233,15 +242,21 @@ def _algebraic2pflow(
 
     See Definition 3.6, Lemma 3.12, and Theorem 3.1 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
+    row_idx_inverse = {i: node for node, i in row_idx.items()}
+    col_idx_inverse = {i: node for node, i in col_idx.items()}
+
     pf: dict[int, set[int]] = {}
     for node, i in col_idx.items():
-        correction_set = {row_idx[j] for j in correction_matrix.data[:, i].nonzero()[0]}
+        correction_set = {row_idx_inverse[j] for j in correction_matrix.data[:, i].nonzero()[0]}
         pf[node] = correction_set
 
+    # Output nodes are always in layer 0
+    l_k = dict.fromkeys(og.outputs, 0)
     # We topologically sort this graph to obtain the order of measurements
-    l_k = {i: non_output_nodes[v] for i, v in enumerate(nx.topological_sort(relation_graph))}
+    # This does not ensure minimal depth. Can we do better ?
+    l_k.update({col_idx_inverse[idx]: layer for layer, idx in enumerate(nx.topological_sort(dag), start=1)})
 
-    return (pf,)
+    return pf, l_k
 
 
 def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | None:
@@ -260,4 +275,4 @@ def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
 
     correction_matrix, _, dag, non_inputs_idx, non_outputs_idx = pflow_algebraic
 
-    return _algebraic2pflow(correction_matrix, dag, row_idx=non_inputs_idx, col_idx=non_outputs_idx)
+    return _algebraic2pflow(og, correction_matrix, dag, row_idx=non_inputs_idx, col_idx=non_outputs_idx)

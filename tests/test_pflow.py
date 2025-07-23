@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+from typing import NamedTuple
+
 import networkx as nx
+import numpy as np
+import pytest
 from numpy.random import Generator
 
 from graphix.fundamentals import Plane
+from graphix.generator import _pflow2pattern
+from graphix.gflow import find_pauliflow
 from graphix.linalg import MatGF2
 from graphix.measurements import Measurement
 from graphix.opengraph import OpenGraph
-from graphix.pflow import _get_pflow_matrices, _get_reduced_adj
-
-from typing import NamedTuple
-
-import pytest
+from graphix.pflow import _get_pflow_matrices, _get_reduced_adj, find_pflow
+from graphix.states import PlanarState
 
 
 class OpenGraphTestCase(NamedTuple):
@@ -190,10 +193,57 @@ class TestPflow:
         assert radj == test_case.radj
 
     @pytest.mark.parametrize("test_case", prepare_test_og())
-    def test_get_plfow_matrices(self, test_case: OpenGraphTestCase) -> None:
+    def test_get_pflow_matrices(self, test_case: OpenGraphTestCase) -> None:
         og = test_case.og
-        flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(og, row_idx=test_case.non_output_idx, col_idx=test_case.non_input_idx)
+        flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(
+            og, row_idx=test_case.non_output_idx, col_idx=test_case.non_input_idx
+        )
 
         assert flow_demand_matrix == test_case.flow_demand_mat
         assert order_demand_matrix == test_case.order_demand_mat
 
+    # This test compares against the existing function for calculating the Pauli flow.
+    # Eventually, we should make the test independent of other flow-finding functions
+    @pytest.mark.parametrize("test_case", prepare_test_og())
+    def test_find_pflow(self, test_case: OpenGraphTestCase, fx_rng: Generator) -> None:
+        og = test_case.og
+        # TODO: Refactor to take open graph as input
+        graph = og.inside
+        inputs = set(og.inputs)
+        outputs = set(og.outputs)
+        meas_planes = {i: m.plane for i, m in og.measurements.items()}
+        meas_angles = {i: m.angle for i, m in og.measurements.items()}
+
+        if len(outputs) > len(inputs):
+            pass  # Not implented yet
+        else:
+            pflow = find_pflow(og)
+            pflow_ref = find_pauliflow(
+                graph=og.inside, iset=inputs, oset=outputs, meas_planes=meas_planes, meas_angles=meas_angles
+            )
+
+            if pflow is None:
+                assert pflow_ref[0] is None
+            else:
+                pattern = _pflow2pattern(
+                    graph=graph, angles=meas_angles, inputs=inputs, meas_planes=meas_planes, p=pflow[0], l_k=pflow[1]
+                )
+                pattern.reorder_output_nodes(outputs)
+
+                # The method og.to_pattern() will first try to construct the pattern from a causal flow, then the general flow and finally the Pauli flow. In general the corresponding patterns might represent different unitaries, therefore we calculate the reference pattern with _pflow2pattern instead.
+
+                pattern_ref = _pflow2pattern(
+                    graph=graph,
+                    angles=meas_angles,
+                    inputs=inputs,
+                    meas_planes=meas_planes,
+                    p=pflow_ref[0],
+                    l_k=pflow_ref[1],
+                )
+                pattern_ref.reorder_output_nodes(outputs)
+
+                alpha = 2 * np.pi * fx_rng.random()
+                state = pattern.simulate_pattern(input_state=PlanarState(Plane.XY, alpha))
+                state_ref = pattern_ref.simulate_pattern(input_state=PlanarState(Plane.XY, alpha))
+
+                assert np.abs(np.dot(state.flatten().conjugate(), state_ref.flatten())) == pytest.approx(1)
