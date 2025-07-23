@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 import networkx as nx
 import numpy as np
-from sympy import Matrix
 
 from graphix.fundamentals import Axis, Plane
 from graphix.gflow import get_pauli_nodes
@@ -54,7 +53,7 @@ def _get_reduced_adj(og: OpenGraph, row_idx: dict[int, int], col_idx: dict[int, 
     -------
     adj_red: MatGF2
         Reduced adjacency matrix.
-    
+
     Notes
     -----
     The adjacency matrix of a graph :math:`Adj_G` is a :math:`n \times n` matrix
@@ -99,7 +98,6 @@ def _get_pflow_matrices(og: OpenGraph, row_idx: dict[int, int], col_idx: dict[in
     -----
     See Definitions 3.4 and 3.5, and Algorithm 1 in Mitosek and Backens, 2024 (arXiv:2410.23439)
     """
-
     flow_demand_matrix = _get_reduced_adj(og, row_idx, col_idx)
     order_demand_matrix = flow_demand_matrix.copy()
 
@@ -125,18 +123,13 @@ def _get_pflow_matrices(og: OpenGraph, row_idx: dict[int, int], col_idx: dict[in
         plane_axis_v = meas_plane_axis[v]
 
         if plane_axis_v in {Plane.YZ, Plane.XZ, Axis.Z}:
-            # Set row corresponding to node v to 0
-            flow_demand_matrix.remove_row(row=i)
-            flow_demand_matrix.add_row(row=i)
-        if plane_axis_v in {Plane.YZ, Plane.XZ, Axis.Y, Axis.Z} and i not in inputs_set:
-            # Set element (v, v) = 0
+            flow_demand_matrix.data[i, :] *= 0  # Set row corresponding to node v to 0
+        if plane_axis_v in {Plane.YZ, Plane.XZ, Axis.Y, Axis.Z} and v not in inputs_set:
             j = col_idx[v]
-            flow_demand_matrix.data[i, j] = 1
+            flow_demand_matrix.data[i, j] = 1  # Set element (v, v) = 0
         if plane_axis_v in {Plane.XY, Axis.X, Axis.Y, Axis.Z}:
-            # Set row corresponding to node v to 0
-            order_demand_matrix.remove_row(row=i)
-            order_demand_matrix.add_row(row=i)
-        if plane_axis_v in {Plane.XY, Plane.XZ} and i not in inputs_set:
+            order_demand_matrix.data[i, :] *= 0  # Set row corresponding to node v to 0
+        if plane_axis_v in {Plane.XY, Plane.XZ} and v not in inputs_set:
             # Set element (v, v) = 0
             j = col_idx[v]
             order_demand_matrix.data[i, j] = 1
@@ -163,8 +156,8 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int], 
     non_input_idx: dict[int, int]
         Mapping between the non-input nodes (keys) and the indices of the matrices involved in the calculation (values).
     non_output_idx: dict[int, int]
-        Mapping between the non-output nodes (keys) and the indices of the matrices involved in the calculation (values).   
-    
+        Mapping between the non-output nodes (keys) and the indices of the matrices involved in the calculation (values).
+
     or `None`
         if the input open graph does not have flow.
 
@@ -181,7 +174,6 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int], 
 
     See Definitions 3.4, 3.5 and 3.6, Lemma 3.12, Theorem 3.1, and Algorithm 2 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
-
     # TODO: It would be interesting to add new attribute to MatGF2 for labelling rows and cols
     nodes = set(og.inside.nodes)
     non_inputs_idx = {node: j for j, node in enumerate(nodes - set(og.inputs))}
@@ -197,9 +189,9 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int], 
     ordering_matrix = order_demand_matrix @ correction_matrix  # NC matrix
 
     # NetworkX uses the convention that a non-zero A(i,j) element represents a link i -> j.
-    # We use the opposite convention, hence the transpose.   
+    # We use the opposite convention, hence the transpose.
     dag = nx.from_numpy_array(ordering_matrix.data.T, create_using=nx.DiGraph)
-    
+
     if not nx.is_directed_acyclic_graph(dag):
         return None  # The NC matrix is not a DAG, therefore there's no flow.
 
@@ -210,9 +202,11 @@ def _find_pflow_general(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int],
     pass
 
 
-def _algebraic2pflow(correction_matrix: MatGF2, dag: nx.DiGraph[int], row_idx: dict[int, int], col_idx: dict[int, int]) -> tuple[dict[int, set[int]], dict[int, int]]:
+def _algebraic2pflow(
+    correction_matrix: MatGF2, dag: nx.DiGraph[int], row_idx: dict[int, int], col_idx: dict[int, int]
+) -> tuple[dict[int, set[int]], dict[int, int]]:
     r"""Transform a Pauli flow in its algebraic form (correction matrix and DAG) into a Pauli flow in its standard form (correction function and partial order).
-    
+
     Parameters
     ----------
     correction_matrix: MatGF2
@@ -222,7 +216,7 @@ def _algebraic2pflow(correction_matrix: MatGF2, dag: nx.DiGraph[int], row_idx: d
     row_idx: dict[int, int]
         Mapping between the non-input nodes (keys) and the rows of the correction matrix (values).
     col_idx: dict[int, int]
-        Mapping between the non-output nodes (keys) and the columns of the correction matrix (values).  
+        Mapping between the non-output nodes (keys) and the columns of the correction matrix (values).
 
     Returns
     -------
@@ -239,19 +233,18 @@ def _algebraic2pflow(correction_matrix: MatGF2, dag: nx.DiGraph[int], row_idx: d
 
     See Definition 3.6, Lemma 3.12, and Theorem 3.1 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
-
-    pf: dict[int, set[int]]= {}
+    pf: dict[int, set[int]] = {}
     for node, i in col_idx.items():
         correction_set = {row_idx[j] for j in correction_matrix.data[:, i].nonzero()[0]}
         pf[node] = correction_set
-    
-    
 
-    return (pf, )
+    # We topologically sort this graph to obtain the order of measurements
+    l_k = {i: non_output_nodes[v] for i, v in enumerate(nx.topological_sort(relation_graph))}
+
+    return (pf,)
 
 
 def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | None:
-
     ni = len(og.inputs)
     no = len(og.outputs)
 
@@ -261,13 +254,10 @@ def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
         pflow_algebraic = _find_pflow_simple(og)
     else:
         pflow_algebraic = _find_pflow_general(og)
-    
+
     if pflow_algebraic is None:
         return None
-    
+
     correction_matrix, _, dag, non_inputs_idx, non_outputs_idx = pflow_algebraic
 
     return _algebraic2pflow(correction_matrix, dag, row_idx=non_inputs_idx, col_idx=non_outputs_idx)
-
-
-
