@@ -24,7 +24,7 @@ class OpenGraphTestCase(NamedTuple):
     radj: MatGF2
     flow_demand_mat: MatGF2
     order_demand_mat: MatGF2
-    has_plow: bool
+    has_pflow: bool
 
 
 def prepare_test_og() -> list[OpenGraphTestCase]:
@@ -56,7 +56,7 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
                 radj=MatGF2([[1, 0], [0, 1]]),
                 flow_demand_mat=MatGF2([[1, 0], [1, 1]]),
                 order_demand_mat=MatGF2([[0, 0], [0, 0]]),
-                has_plow=True,
+                has_pflow=True,
             ),
             # Same as case 1 but with permuted columns
             OpenGraphTestCase(
@@ -66,7 +66,7 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
                 radj=MatGF2([[0, 1], [1, 0]]),
                 flow_demand_mat=MatGF2([[0, 1], [1, 1]]),
                 order_demand_mat=MatGF2([[0, 0], [0, 0]]),
-                has_plow=True,
+                has_pflow=True,
             ),
             # Same as case 1 but with permuted rows
             OpenGraphTestCase(
@@ -76,14 +76,14 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
                 radj=MatGF2([[0, 1], [1, 0]]),
                 flow_demand_mat=MatGF2([[1, 1], [1, 0]]),
                 order_demand_mat=MatGF2([[0, 0], [0, 0]]),
-                has_plow=True,
+                has_pflow=True,
             ),
         )
     )
 
-    # Non-trivial open graph with pflow and nI = nO
+    # Non-trivial open graph without pflow and nI = nO
     def get_og_2() -> OpenGraph:
-        """Return an open graph with Pauli flow and equal number of outputs and inputs.
+        """Return an open graph without Pauli flow and equal number of outputs and inputs.
 
         The returned graph has the following structure:
 
@@ -139,7 +139,7 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
                     [0, 1, 1, 0, 0, 1],
                 ]
             ),
-            has_plow=True,
+            has_pflow=False,
         )
     )
 
@@ -178,7 +178,7 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
             order_demand_mat=MatGF2(
                 [[0, 0, 0, 0, 0, 0], [1, 0, 0, 1, 0, 1], [0, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0]]
             ),
-            has_plow=True,
+            has_pflow=True,
         )
     )
     return test_cases
@@ -204,6 +204,7 @@ class TestPflow:
 
     # This test compares against the existing function for calculating the Pauli flow.
     # Eventually, we should make the test independent of other flow-finding functions
+    @pytest.mark.skip(reason="Bug in `graphix.gflow.find_pauliflow`")
     @pytest.mark.parametrize("test_case", prepare_test_og())
     def test_find_pflow(self, test_case: OpenGraphTestCase, fx_rng: Generator) -> None:
         og = test_case.og
@@ -247,3 +248,40 @@ class TestPflow:
                 state_ref = pattern_ref.simulate_pattern(input_state=PlanarState(Plane.XY, alpha))
 
                 assert np.abs(np.dot(state.flatten().conjugate(), state_ref.flatten())) == pytest.approx(1)
+
+    @pytest.mark.parametrize("test_case", prepare_test_og())
+    def test_find_pflow_determinism(self, test_case: OpenGraphTestCase, fx_rng: Generator) -> None:
+        og = test_case.og
+
+        if len(og.outputs) > len(og.inputs):
+            pass  # Not implemented yet
+        else:
+            pflow = find_pflow(og)
+
+            if not test_case.has_pflow:
+                assert pflow is None
+            else:
+                assert pflow is not None
+
+                pattern = _pflow2pattern(
+                    graph=og.inside,
+                    inputs=set(og.inputs),
+                    meas_planes={i: m.plane for i, m in og.measurements.items()},
+                    angles={i: m.angle for i, m in og.measurements.items()},
+                    p=pflow[0],
+                    l_k=pflow[1],
+                )
+                pattern.reorder_output_nodes(og.outputs)
+
+                alpha = 2 * np.pi * fx_rng.random()
+                state_ref = pattern.simulate_pattern(input_state=PlanarState(Plane.XY, alpha))
+
+                n_shots = 5
+                results = []
+                for _ in range(n_shots):
+                    state = pattern.simulate_pattern(input_state=PlanarState(Plane.XY, alpha))
+                    results.append(np.abs(np.dot(state.flatten().conjugate(), state_ref.flatten())))
+
+                avg = sum(results) / n_shots
+
+                assert avg == pytest.approx(1)

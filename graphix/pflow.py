@@ -280,7 +280,7 @@ def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
 
 def is_pflow_valid(og: OpenGraph, pf: Mapping[int, set[int]], l_k: Mapping[int, int]) -> bool:
     """Verify if a given Pauli flow is correct by checking the Pauli flow conditions (P1 - P9).
-    
+
     See Definition 5 in Browne et al., NJP 9, 250 (2007).
 
     Returns
@@ -289,7 +289,7 @@ def is_pflow_valid(og: OpenGraph, pf: Mapping[int, set[int]], l_k: Mapping[int, 
         Pauli flow correction function. pf[i] is the set of qubits to be corrected for the measurement of qubit i.
     l_k: dict[int, int]
         Partial order between corrected qubits, such that the pair (`key`, `value`) corresponds to (node, depth).
-    
+
     """
 
     return False
