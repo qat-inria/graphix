@@ -330,13 +330,16 @@ class MatGF2:
         A right inverse :math:`B` of a matrix :math:`A` satisfies :math:`AB = I` where :math:`I` is the identity matrix.
         """
         m, n = self.data.shape
-        if m > n or m != self.get_rank():  # TODO: rank should be a property of MatGF2
+        if m > n or m != self.get_rank():
             return None  # Non-invertible
 
         ident = galois.GF2.Identity(m)
         aug = galois.GF2(np.hstack([self.data, ident]))
-        red = aug.row_reduce(ncols=n)
+        red = aug.row_reduce(ncols=n)  # Reduced row echelon form
         rinv = galois.GF2.Zeros((n, m))
-        rinv[:m, :m] = red[:, -m:]
+
+        for i, row in enumerate(red):
+            j = np.where(row)[0][0]
+            rinv[j, :] = red[i, n:]
 
         return MatGF2(rinv)
