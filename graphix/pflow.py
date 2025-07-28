@@ -9,36 +9,41 @@ import numpy as np
 from graphix.fundamentals import Axis, Plane
 from graphix.gflow import get_pauli_nodes
 from graphix.linalg import MatGF2
+from graphix.sim.base_backend import NodeIndex
 
 if TYPE_CHECKING:
     from graphix.opengraph import OpenGraph
 
-# NOT WORKING
-# def _is_dag(mat: MatGF2) -> bool:
-#     """Check if matrix represents a DAG."""
 
-#     m, n = mat.data.shape
-#     if m != n:
-#         return False
+class OpenGraphIndex:
+    """A class for managing the mapping between node numbers of a given open graph and matrix indices in the Pauli flow finding algorithm.
 
-#     all_nodes = set(range(m))
+    It reuses the class :class:`graphix.sim.base_backend.NodeIndex` introduced for managing the mapping between node numbers and qubit indices in the internal state of the backend.
 
-#     while all_nodes:
-#         visited: set[int] = set()
-#         queue = {all_nodes.pop()}
-#         while queue:
-#             n = queue.pop()
-#             if n in visited:
-#                 return False
-#             visited |= {n}
-#             neigh = set(mat.data[:, n].nonzero()[0])
-#             queue |= neigh
-#             all_nodes -= {n}
+    Attributes
+    ----------
+        og (OpenGraph)
+        non_inputs (NodeIndex) : Mapping between matrix indices and non-input nodes (labelled with integers).
+        non_outputs (NodeIndex) : Mapping between matrix indices and non-output nodes (labelled with integers).
+    """
 
-#     return True
+    def __init__(self, og: OpenGraph) -> None:
+        self.og = og
+        nodes = set(og.inside.nodes)
+
+        # Nodes don't need to be sorted. We do it for debugging purposes, so we can check the matrices in intermediate steps of the algorithm.
+
+        nodes_non_input = sorted(nodes - set(og.inputs))
+        nodes_non_output = sorted(nodes - set(og.outputs))
+
+        self.non_inputs = NodeIndex()
+        self.non_inputs.extend(nodes_non_input)
+
+        self.non_outputs = NodeIndex()
+        self.non_outputs.extend(nodes_non_output)
 
 
-def _get_reduced_adj(og: OpenGraph, row_idx: Mapping[int, int], col_idx: Mapping[int, int]) -> MatGF2:
+def _get_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
     r"""Return reduced adjacency matrix (RAdj) of the input open graph.
 
     Parameters
@@ -63,22 +68,24 @@ def _get_reduced_adj(og: OpenGraph, row_idx: Mapping[int, int], col_idx: Mapping
 
     See Definition 3.3 in Mitosek and Backens, 2024 (arXiv:2410.23439)
     """
-    graph = og.inside
+    graph = ogi.og.inside
+    row_tags = ogi.non_outputs
+    col_tags = ogi.non_inputs
 
-    adj_red = MatGF2(np.zeros((len(row_idx), len(col_idx)), dtype=np.int64))
+    adj_red = MatGF2(np.zeros((len(row_tags), len(col_tags)), dtype=np.int64))
 
     for n1, n2 in graph.edges:
-        if n1 in row_idx and n2 in col_idx:
-            i, j = row_idx[n1], col_idx[n2]
+        if n1 in row_tags and n2 in col_tags:
+            i, j = row_tags.index(n1), col_tags.index(n2)
             adj_red.data[i, j] = 1
-        if n2 in row_idx and n1 in col_idx:
-            i, j = row_idx[n2], col_idx[n1]
+        if n2 in row_tags and n1 in col_tags:
+            i, j = row_tags.index(n2), col_tags.index(n1)
             adj_red.data[i, j] = 1
 
     return adj_red
 
 
-def _get_pflow_matrices(og: OpenGraph, row_idx: Mapping[int, int], col_idx: Mapping[int, int]) -> tuple[MatGF2, MatGF2]:
+def _get_pflow_matrices(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2]:
     r"""Construct flow-demand and order-demand matrices.
 
     Parameters
@@ -99,11 +106,14 @@ def _get_pflow_matrices(og: OpenGraph, row_idx: Mapping[int, int], col_idx: Mapp
     -----
     See Definitions 3.4 and 3.5, and Algorithm 1 in Mitosek and Backens, 2024 (arXiv:2410.23439)
     """
-    flow_demand_matrix = _get_reduced_adj(og, row_idx, col_idx)
+    flow_demand_matrix = _get_reduced_adj(ogi)
     order_demand_matrix = flow_demand_matrix.copy()
 
-    inputs_set = set(og.inputs)
-    meas = og.measurements
+    inputs_set = set(ogi.og.inputs)
+    meas = ogi.og.measurements
+
+    row_tags = ogi.non_outputs
+    col_tags = ogi.non_inputs
 
     # TODO: integrate pauli measurements in open graphs
     meas_planes = {i: m.plane for i, m in meas.items()}
@@ -120,25 +130,25 @@ def _get_pflow_matrices(og: OpenGraph, row_idx: Mapping[int, int], col_idx: Mapp
         else:
             meas_plane_axis[i] = plane
 
-    for v, i in row_idx.items():
+    for v in row_tags:  # v is a node tag
+        i = row_tags.index(v)
         plane_axis_v = meas_plane_axis[v]
 
         if plane_axis_v in {Plane.YZ, Plane.XZ, Axis.Z}:
             flow_demand_matrix.data[i, :] *= 0  # Set row corresponding to node v to 0
         if plane_axis_v in {Plane.YZ, Plane.XZ, Axis.Y, Axis.Z} and v not in inputs_set:
-            j = col_idx[v]
+            j = col_tags.index(v)
             flow_demand_matrix.data[i, j] = 1  # Set element (v, v) = 0
         if plane_axis_v in {Plane.XY, Axis.X, Axis.Y, Axis.Z}:
             order_demand_matrix.data[i, :] *= 0  # Set row corresponding to node v to 0
         if plane_axis_v in {Plane.XY, Plane.XZ} and v not in inputs_set:
-            # Set element (v, v) = 0
-            j = col_idx[v]
-            order_demand_matrix.data[i, j] = 1
+            j = col_tags.index(v)
+            order_demand_matrix.data[i, j] = 1  # Set element (v, v) = 1
 
     return flow_demand_matrix, order_demand_matrix
 
 
-def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int], dict[int, int], dict[int, int]] | None:
+def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2, nx.DiGraph[int]] | None:
     r"""Construct correction-function matrix :math:`C` and product of the order-demand matrix :math:`N` and the correction-function matrix, :math:`NC`.
 
     Parameters
@@ -175,12 +185,7 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int], 
 
     See Definitions 3.4, 3.5 and 3.6, Lemma 3.12, Theorem 3.1, and Algorithm 2 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
-    # TODO: It would be interesting to add new attribute to MatGF2 for labelling rows and cols
-    nodes = set(og.inside.nodes)
-    non_inputs_idx = {node: i for i, node in enumerate(nodes - set(og.inputs))}
-    non_outputs_idx = {node: i for i, node in enumerate(nodes - set(og.outputs))}
-
-    flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(og, row_idx=non_outputs_idx, col_idx=non_inputs_idx)
+    flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(ogi)
 
     correction_matrix = flow_demand_matrix.right_inverse()  # C matrix
 
@@ -198,19 +203,17 @@ def _find_pflow_simple(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int], 
         print("Dag none")
         return None  # The NC matrix is not a DAG, therefore there's no flow.
 
-    return correction_matrix, ordering_matrix, dag, non_inputs_idx, non_outputs_idx
+    return correction_matrix, ordering_matrix, dag
 
 
-def _find_pflow_general(og: OpenGraph) -> tuple[MatGF2, MatGF2, nx.DiGraph[int], dict[int, int], dict[int, int]] | None:
+def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2, nx.DiGraph[int]] | None:
     pass
 
 
 def _algebraic2pflow(
-    og: OpenGraph,
+    ogi: OpenGraphIndex,
     correction_matrix: MatGF2,
     dag: nx.DiGraph[int],
-    row_idx: Mapping[int, int],
-    col_idx: Mapping[int, int],
 ) -> tuple[dict[int, set[int]], dict[int, int]]:
     r"""Transform a Pauli flow in its algebraic form (correction matrix and DAG) into a Pauli flow in its standard form (correction function and partial order).
 
@@ -242,19 +245,20 @@ def _algebraic2pflow(
 
     See Definition 3.6, Lemma 3.12, and Theorem 3.1 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
-    row_idx_inverse = {i: node for node, i in row_idx.items()}
-    col_idx_inverse = {i: node for node, i in col_idx.items()}
+    row_tags = ogi.non_inputs
+    col_tags = ogi.non_outputs
 
     pf: dict[int, set[int]] = {}
-    for node, i in col_idx.items():
-        correction_set = {row_idx_inverse[j] for j in correction_matrix.data[:, i].nonzero()[0]}
+    for node in col_tags:
+        i = col_tags.index(node)
+        correction_set = {row_tags[j] for j in correction_matrix.data[:, i].nonzero()[0]}
         pf[node] = correction_set
 
     # Output nodes are always in layer 0
-    l_k = dict.fromkeys(og.outputs, 0)
+    l_k = dict.fromkeys(ogi.og.outputs, 0)
     # We topologically sort this graph to obtain the order of measurements
     # This does not ensure minimal depth. Can we do better ?
-    l_k.update({col_idx_inverse[idx]: layer for layer, idx in enumerate(nx.topological_sort(dag), start=1)})
+    l_k.update({col_tags[idx]: layer for layer, idx in enumerate(nx.topological_sort(dag), start=1)})
 
     return pf, l_k
 
@@ -265,17 +269,14 @@ def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
 
     if ni > no:
         return None
-    if ni == no:
-        pflow_algebraic = _find_pflow_simple(og)
-    else:
-        pflow_algebraic = _find_pflow_general(og)
 
-    if pflow_algebraic is None:
+    ogi = OpenGraphIndex(og)
+    if (pflow_algebraic := _find_pflow_simple(ogi) if ni == no else _find_pflow_general(ogi)) is None:
         return None
 
-    correction_matrix, _, dag, non_inputs_idx, non_outputs_idx = pflow_algebraic
+    correction_matrix, _, dag = pflow_algebraic
 
-    return _algebraic2pflow(og, correction_matrix, dag, row_idx=non_inputs_idx, col_idx=non_outputs_idx)
+    return _algebraic2pflow(ogi, correction_matrix, dag)
 
 
 def is_pflow_valid(og: OpenGraph, pf: Mapping[int, set[int]], l_k: Mapping[int, int]) -> bool:

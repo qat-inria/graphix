@@ -13,14 +13,12 @@ from graphix.gflow import find_pauliflow
 from graphix.linalg import MatGF2
 from graphix.measurements import Measurement
 from graphix.opengraph import OpenGraph
-from graphix.pflow import _get_pflow_matrices, _get_reduced_adj, find_pflow
+from graphix.pflow import OpenGraphIndex, _get_pflow_matrices, _get_reduced_adj, find_pflow
 from graphix.states import PlanarState
 
 
 class OpenGraphTestCase(NamedTuple):
-    og: OpenGraph
-    non_input_idx: dict[int, int]
-    non_output_idx: dict[int, int]
+    ogi: OpenGraphIndex
     radj: MatGF2
     flow_demand_mat: MatGF2
     order_demand_mat: MatGF2
@@ -47,37 +45,13 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
         }
         return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
 
-    test_cases.extend(
-        (
-            OpenGraphTestCase(
-                og=get_og_1(),
-                non_input_idx={1: 0, 2: 1},
-                non_output_idx={0: 0, 1: 1},
-                radj=MatGF2([[1, 0], [0, 1]]),
-                flow_demand_mat=MatGF2([[1, 0], [1, 1]]),
-                order_demand_mat=MatGF2([[0, 0], [0, 0]]),
-                has_pflow=True,
-            ),
-            # Same as case 1 but with permuted columns
-            OpenGraphTestCase(
-                og=get_og_1(),
-                non_input_idx={1: 1, 2: 0},
-                non_output_idx={0: 0, 1: 1},
-                radj=MatGF2([[0, 1], [1, 0]]),
-                flow_demand_mat=MatGF2([[0, 1], [1, 1]]),
-                order_demand_mat=MatGF2([[0, 0], [0, 0]]),
-                has_pflow=True,
-            ),
-            # Same as case 1 but with permuted rows
-            OpenGraphTestCase(
-                og=get_og_1(),
-                non_input_idx={1: 0, 2: 1},
-                non_output_idx={1: 0, 0: 1},
-                radj=MatGF2([[0, 1], [1, 0]]),
-                flow_demand_mat=MatGF2([[1, 1], [1, 0]]),
-                order_demand_mat=MatGF2([[0, 0], [0, 0]]),
-                has_pflow=True,
-            ),
+    test_cases.append(
+        OpenGraphTestCase(
+            ogi=OpenGraphIndex(get_og_1()),
+            radj=MatGF2([[1, 0], [0, 1]]),
+            flow_demand_mat=MatGF2([[1, 0], [1, 1]]),
+            order_demand_mat=MatGF2([[0, 0], [0, 0]]),
+            has_pflow=True,
         )
     )
 
@@ -106,9 +80,7 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     test_cases.append(
         OpenGraphTestCase(
-            og=get_og_2(),
-            non_input_idx=dict(zip(range(2, 8), range(6))),
-            non_output_idx=dict(zip(range(6), range(6))),
+            ogi=OpenGraphIndex(get_og_2()),
             radj=MatGF2(
                 [
                     [1, 0, 0, 0, 0, 0],
@@ -166,9 +138,7 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     test_cases.append(
         OpenGraphTestCase(
-            og=get_og_3(),
-            non_input_idx=dict(zip([1, 2, 3, 4, 5, 6], range(6))),
-            non_output_idx=dict(zip([0, 1, 2, 3, 4], range(5))),
+            ogi=OpenGraphIndex(get_og_3()),
             radj=MatGF2(
                 [[0, 1, 0, 0, 0, 0], [0, 0, 0, 1, 0, 1], [0, 0, 1, 1, 0, 1], [0, 1, 0, 1, 1, 1], [1, 1, 1, 0, 0, 1]]
             ),
@@ -187,17 +157,15 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 class TestPflow:
     @pytest.mark.parametrize("test_case", prepare_test_og())
     def test_get_reduced_adj(self, test_case: OpenGraphTestCase) -> None:
-        og = test_case.og
-        radj = _get_reduced_adj(og, row_idx=test_case.non_output_idx, col_idx=test_case.non_input_idx)
+        ogi = test_case.ogi
+        radj = _get_reduced_adj(ogi)
 
         assert radj == test_case.radj
 
     @pytest.mark.parametrize("test_case", prepare_test_og())
     def test_get_pflow_matrices(self, test_case: OpenGraphTestCase) -> None:
-        og = test_case.og
-        flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(
-            og, row_idx=test_case.non_output_idx, col_idx=test_case.non_input_idx
-        )
+        ogi = test_case.ogi
+        flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(ogi)
 
         assert flow_demand_matrix == test_case.flow_demand_mat
         assert order_demand_matrix == test_case.order_demand_mat
@@ -207,7 +175,7 @@ class TestPflow:
     @pytest.mark.skip(reason="Bug in `graphix.gflow.find_pauliflow`")
     @pytest.mark.parametrize("test_case", prepare_test_og())
     def test_find_pflow(self, test_case: OpenGraphTestCase, fx_rng: Generator) -> None:
-        og = test_case.og
+        og = test_case.ogi.og
         # TODO: Refactor to take open graph as input
         graph = og.inside
         inputs = set(og.inputs)
@@ -251,7 +219,7 @@ class TestPflow:
 
     @pytest.mark.parametrize("test_case", prepare_test_og())
     def test_find_pflow_determinism(self, test_case: OpenGraphTestCase, fx_rng: Generator) -> None:
-        og = test_case.og
+        og = test_case.ogi.og
 
         if len(og.outputs) > len(og.inputs):
             pass  # Not implemented yet
