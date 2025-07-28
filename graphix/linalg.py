@@ -327,11 +327,13 @@ class MatGF2:
 
         Notes
         -----
-        A right inverse :math:`B` of a matrix :math:`A` satisfies :math:`AB = I` where :math:`I` is the identity matrix.
+        Let us consider a matrix :math:`A` of size :math:`(m \times n)`. The right inverse is a matrix :math:`B` of size :math:`(n \times m)` s.t. :math:`AB = I` where :math:`I` is the identity matrix.
+        - The right inverse only exists if :math:`rank(A) = m`. Therefore, it is necessary but not sufficient that :math:`m > n`.
+        - The right inverse is unique only if :math:`m=n`.
         """
         m, n = self.data.shape
-        if m > n or m != self.get_rank():
-            return None  # Non-invertible
+        if m > n or m != self.get_rank():  # short circuit for efficiency
+            return None
 
         ident = galois.GF2.Identity(m)
         aug = galois.GF2(np.hstack([self.data, ident]))
@@ -339,7 +341,7 @@ class MatGF2:
         rinv = galois.GF2.Zeros((n, m))
 
         for i, row in enumerate(red):
-            j = np.where(row)[0][0]
+            j = np.where(row)[0][0]  # Column index corresponding to the leading 1 in row i
             rinv[j, :] = red[i, n:]
 
         return MatGF2(rinv)
