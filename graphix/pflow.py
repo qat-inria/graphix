@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
 import networkx as nx
 import numpy as np
@@ -11,7 +11,7 @@ from graphix.linalg import MatGF2
 from graphix.sim.base_backend import NodeIndex
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
     from graphix.opengraph import OpenGraph
 
@@ -141,7 +141,7 @@ def _get_pflow_matrices(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2]:
     return flow_demand_matrix, order_demand_matrix
 
 
-def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2, nx.DiGraph[int]] | None:
+def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2, list[list[int]]] | None:
     r"""Construct correction-function matrix :math:`C` and product of the order-demand matrix :math:`N` and the correction-function matrix, :math:`NC`.
 
     Parameters
@@ -187,20 +187,23 @@ def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2, nx.DiGraph[
     # We use the opposite convention, hence the transpose.
     dag = nx.from_numpy_array(ordering_matrix.data.T, create_using=nx.DiGraph)
 
-    if not nx.is_directed_acyclic_graph(dag):
+    topo_gen = nx.topological_generations(dag)
+    try:
+        topo_gen_lst = list(topo_gen)
+    except nx.NetworkXUnfeasible:
         return None  # The NC matrix is not a DAG, therefore there's no flow.
 
-    return correction_matrix, ordering_matrix, dag
+    return correction_matrix, ordering_matrix, topo_gen_lst
 
 
-def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2, nx.DiGraph[int]] | None:
+def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2, list[list[int]]] | None:
     pass
 
 
 def _algebraic2pflow(
     ogi: OpenGraphIndex,
     correction_matrix: MatGF2,
-    dag: nx.DiGraph[int],
+    topo_gen: Sequence[Sequence[int]],
 ) -> tuple[dict[int, set[int]], dict[int, int]]:
     r"""Transform a Pauli flow in its algebraic form (correction matrix and DAG) into a Pauli flow in its standard form (correction function and partial order).
 
@@ -242,8 +245,7 @@ def _algebraic2pflow(
 
     # If m >_c n, with >_c the flow order for two nodes m, n, then layer(n) > layer(m).
     # Therefore, we iterate the topological sort of the graph in _reverse_ order to obtain the order of measurements.
-
-    for layer, idx in enumerate(reversed(list(nx.topological_generations(dag))), start=1):
+    for layer, idx in enumerate(reversed(topo_gen), start=1):
         l_k.update({col_tags[i]: layer for i in idx})
 
     return pf, l_k
@@ -260,9 +262,9 @@ def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
     if (pflow_algebraic := _find_pflow_simple(ogi) if ni == no else _find_pflow_general(ogi)) is None:
         return None
 
-    correction_matrix, _, dag = pflow_algebraic
+    correction_matrix, _, topo_gen = pflow_algebraic
 
-    return _algebraic2pflow(ogi, correction_matrix, dag)
+    return _algebraic2pflow(ogi, correction_matrix, topo_gen)
 
 
 def is_pflow_valid(og: OpenGraph, pf: Mapping[int, set[int]], l_k: Mapping[int, int]) -> bool:
