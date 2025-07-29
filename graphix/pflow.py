@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable
 
-from cycler import V
+import galois
 import networkx as nx
 import numpy as np
 
@@ -13,6 +13,7 @@ from graphix.sim.base_backend import NodeIndex
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+    from collections.abc import Set as AbstractSet
 
     from graphix.opengraph import OpenGraph
 
@@ -64,7 +65,7 @@ def _get_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
 
     The RAdj matrix of an open graph OG is an :math:`(n - n_O) \times (n - n_I)` submatrix of :math:`Adj_G` constructed by removing the output rows and input columns of of :math:`Adj_G`.
 
-    See Definition 3.3 in Mitosek and Backens, 2024 (arXiv:2410.23439)
+    See Definition 3.3 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
     graph = ogi.og.inside
     row_tags = ogi.non_outputs
@@ -98,7 +99,7 @@ def _get_pflow_matrices(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2]:
 
     Notes
     -----
-    See Definitions 3.4 and 3.5, and Algorithm 1 in Mitosek and Backens, 2024 (arXiv:2410.23439)
+    See Definitions 3.4 and 3.5, and Algorithm 1 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
     flow_demand_matrix = _get_reduced_adj(ogi)
     order_demand_matrix = flow_demand_matrix.copy()
@@ -184,8 +185,114 @@ def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
 
 def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
     #  Steps 8 - 12
-    return None
 
+    n_cols_p = len(ogi.non_outputs)
+    n_rows_p = len(ogi.og.outputs) - len(ogi.og.inputs)
+
+    # Steps 8, 9 and 10
+    kils_matrix = MatGF2(nb_matrix.data[:, n_cols_p:])  # N_R matrix
+    kils_matrix.concatenate(MatGF2(nb_matrix.data[:, :n_cols_p]), axis=1)  # Concatenate N_L matrix
+    kils_matrix.concatenate(MatGF2(np.eye(n_cols_p, dtype=np.int64)), axis=1)  # Concatenate identity matrix
+
+    # RREF form is not needed, only REF.
+    # TODO: Implement Gaussian elimination to bring matrix to RREF (more efficient)
+    kls_matrix = MatGF2(galois.GF2(kils_matrix.data).row_reduce(ncols=n_rows_p))
+
+    # Step 11
+    p_matrix = MatGF2(np.zeros((n_rows_p, n_cols_p), dtype=np.int64))
+    solved_nodes: set[int] = set()
+    non_outputs_set = set(ogi.non_outputs)
+
+    # Step 12
+
+    def get_solvable_nodes() -> set[int]:
+        """Return the set nodes whose associated linear system is solvable.
+
+        A node is solvable if:
+            - It has not been solved yet.
+            - Its column in the second block of :math:`K_{LS}` (which determines the constants in each equation) has only zeros where it intersects rows for which all the coefficients in the first block are 0s.
+
+        See Theorem 4.4, step 12.a in Mitosek and Backens, 2024 (arXiv:2410.23439).
+        """
+        solvable_nodes: set[int] = set()
+
+        zero_rows_idx = np.flatnonzero(~kls_matrix.data[:, :n_rows_p].any(axis=1))  # row indices of the 0-rows in the first block of K_{LS}
+        if zero_rows_idx.size:
+            for v in non_outputs_set - solved_nodes:
+                j = n_rows_p + ogi.non_outputs.index(v)  # n_rows_p is the column offset from the first block of K_{LS}
+                if not kls_matrix.data[zero_rows_idx, j].any():
+                    solvable_nodes.add(v)
+
+        return solvable_nodes
+
+    def update_p_matrix() -> None:
+        """Update `p_matrix`.
+
+        The solution of the linear system associated with node v in `solvable_nodes` corresponds to the column of `p_matrix` associated with node v.
+
+        See Theorem 4.4, steps 12.b and 12.c in Mitosek and Backens, 2024 (arXiv:2410.23439).
+        """
+        for v in solvable_nodes:
+            j = ogi.non_outputs.index(v)
+            j_shift = n_rows_p + j  # n_rows_p is the column offset from the first block of K_{LS}
+            mat = MatGF2(kls_matrix.data[:, :n_rows_p])  # first block of kls, in row echelon form.
+            b = MatGF2(kls_matrix.data[:, j_shift])
+            x = _back_substitute(mat, b)
+            p_matrix.data[:, j] = x.data
+
+    def update_kls_matrix() -> None:
+        """Update `kls_matrix`.
+
+        Bring the linear system encoded in :math:`K_{LS}` to the row-echelon form (REF) that would be achieved by Gaussian elimination if the row and column vectors corresponding to vertices in `solvable_nodes` where not included in the starting matrix.
+
+        See Theorem 4.4, step 12.d in Mitosek and Backens, 2024 (arXiv:2410.23439).
+        """
+
+    while solved_nodes != non_outputs_set:
+        solvable_nodes = get_solvable_nodes()  # Step 12.a
+        if not solvable_nodes:
+            return None
+
+        update_p_matrix()  # Steps 12.b, 12.c
+        update_kls_matrix()  # Step 12.d
+        solved_nodes.update(solvable_nodes)
+
+    return p_matrix
+
+
+def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
+    r"""Solve the linear system (LS) `mat @ x == b`.
+
+    Parameters
+    ----------
+    A: MatGF2
+        Matrix with shape `(m, n)` containing the LS coefficients in row echelon form (REF).
+    b: MatGF2
+        Matrix with shape `(m,)` containing the constants column vector.
+
+    Returns
+    -------
+    x: MatGF2
+        Matrix with shape `(n,)` containing the solutions of the LS.
+
+    Notes
+    -----
+    This function is not integrated in `:class: graphix.linalg.MatGF2` because it does not perform any checks on the form of `mat` to ensure that it is in REF.
+    """
+    m, n = mat.data.shape
+    x = MatGF2(np.zeros(n, dtype=np.int64))
+
+    for i in range(m - 1, -1, -1):
+        row = mat.data[i]
+        one_col_idx = np.flatnonzero(row)  # Column indices with non-zero values
+        if not one_col_idx.size:
+            continue  # Skip if row is all zeros
+
+        j = one_col_idx[0]
+        # x_j = b_i + sum_{k = j+1}^{n-1} A_{i,k} x_k = b_i + sum_{k} A_{i,k} x_k because A in REF and x_j = 0
+        x.data[j] = b.data[i] ^ np.bitwise_xor.reduce(x.data[one_col_idx])
+
+    return x
 
 def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
 
@@ -305,6 +412,7 @@ def _algebraic2pflow(
 
 
 def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | None:
+    """Return Pauli flow."""
     ni = len(og.inputs)
     no = len(og.outputs)
 
