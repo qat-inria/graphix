@@ -241,7 +241,7 @@ class TestPflow:
                 assert pflow_algebraic is None
             else:
                 assert pflow_algebraic is not None
-                correction_matrix, _, _ = pflow_algebraic
+                correction_matrix, _ = pflow_algebraic
                 ident = MatGF2(np.eye(len(ogi.non_outputs), dtype=np.int64))
                 assert test_case.flow_demand_mat @ correction_matrix == ident
 

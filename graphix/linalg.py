@@ -99,14 +99,14 @@ class MatGF2:
         self.data = np.insert(self.data, col, array_to_add, axis=1)
 
     def concatenate(self, other: MatGF2, axis: int = 1) -> None:
-        """Concatinate two matrices.
+        """Concatenate two matrices.
 
         Parameters
         ----------
         other: MatGF2
-            matrix to concatinate
+            matrix to concatenate
         axis: int(optional)
-            axis to concatinate. Defaults to 1.
+            axis to concatenate. Defaults to 1.
         """
         self.data = np.concatenate((self.data, other.data), axis=axis)
 
@@ -314,7 +314,6 @@ class MatGF2:
 
         return x, kernels
 
-    #  This function is adapted from #294
     def right_inverse(self) -> MatGF2 | None:
         r"""Return any right inverse of the matrix.
 
@@ -345,3 +344,17 @@ class MatGF2:
             rinv[j, :] = red[i, n:]
 
         return MatGF2(rinv)
+
+    def null_space(self) -> MatGF2:
+        r"""Return the null space of the matrix.
+
+        Returns
+        -------
+        MatGF2
+            The rows of the basis matrix are the basis vectors that span the null space. The number of rows of the basis matrix is the dimension of the null space.
+        """
+        return MatGF2(galois.GF2(self.data).null_space())
+
+    def transpose(self) -> MatGF2:
+        r"""Return transpose of the matrix."""
+        return MatGF2(self.data.T)
