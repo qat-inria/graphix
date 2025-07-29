@@ -34,7 +34,7 @@ class MatGF2:
 
     def __eq__(self, other: MatGF2) -> bool:
         """Return `True` if two matrices are equal, `False` otherwise."""
-        return bool(np.all(self.data == other.data))
+        return np.all(self.data == other.data)
 
     def __add__(self, other: npt.NDArray | MatGF2) -> MatGF2:
         """Add two matrices."""

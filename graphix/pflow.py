@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 import networkx as nx
@@ -12,6 +11,8 @@ from graphix.linalg import MatGF2
 from graphix.sim.base_backend import NodeIndex
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from graphix.opengraph import OpenGraph
 
 
@@ -50,10 +51,6 @@ def _get_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
     ----------
     og : OpenGraph
         Open graph whose RAdj is to be computed.
-    row_idx: dict[int, int]
-        Mapping between the non-output nodes (keys) and the rows of `adj_red` (values).
-    col_idx: dict[int, int]
-        Mapping between the non-input nodes (keys) and the columns of `adj_red` (values).
 
     Returns
     -------
@@ -92,10 +89,6 @@ def _get_pflow_matrices(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2]:
     ----------
     og : OpenGraph
         Open graph whose flow-demand and order-demand matrices are to be computed.
-    row_idx: dict[int, int]
-        Mapping between the non-output nodes (keys) and the rows of the flow-demand and order-demand matrices (values).
-    col_idx: dict[int, int]
-        Mapping between the non-input nodes (keys) and the columns of the flow-demand and order-demand matrices (values).
 
     Returns
     -------
@@ -164,10 +157,6 @@ def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2, nx.DiGraph[
         Matrix enconding the partial ordering between nodes.
     dag: nx.DiGraph[int]
         Directed acyclical graph represented by the ordering matrix.
-    non_input_idx: dict[int, int]
-        Mapping between the non-input nodes (keys) and the indices of the matrices involved in the calculation (values).
-    non_output_idx: dict[int, int]
-        Mapping between the non-output nodes (keys) and the indices of the matrices involved in the calculation (values).
 
     or `None`
         if the input open graph does not have flow.
@@ -190,7 +179,6 @@ def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2, nx.DiGraph[
     correction_matrix = flow_demand_matrix.right_inverse()  # C matrix
 
     if correction_matrix is None:
-        print("C none")
         return None  # The flow-demand matrix is not invertible, therefore there's no flow.
 
     ordering_matrix = order_demand_matrix @ correction_matrix  # NC matrix
@@ -200,7 +188,6 @@ def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2, nx.DiGraph[
     dag = nx.from_numpy_array(ordering_matrix.data.T, create_using=nx.DiGraph)
 
     if not nx.is_directed_acyclic_graph(dag):
-        print("Dag none")
         return None  # The NC matrix is not a DAG, therefore there's no flow.
 
     return correction_matrix, ordering_matrix, dag
@@ -225,10 +212,6 @@ def _algebraic2pflow(
         Matrix encoding the correction function.
     dag: nx.DiGraph[int]
         Directed acyclical graph represented by the ordering matrix.
-    row_idx: dict[int, int]
-        Mapping between the non-input nodes (keys) and the rows of the correction matrix (values).
-    col_idx: dict[int, int]
-        Mapping between the non-output nodes (keys) and the columns of the correction matrix (values).
 
     Returns
     -------
@@ -256,9 +239,12 @@ def _algebraic2pflow(
 
     # Output nodes are always in layer 0
     l_k = dict.fromkeys(ogi.og.outputs, 0)
-    # We topologically sort this graph to obtain the order of measurements
-    # This does not ensure minimal depth. Can we do better ?
-    l_k.update({col_tags[idx]: layer for layer, idx in enumerate(nx.topological_sort(dag), start=1)})
+
+    # If m >_c n, with >_c the flow order for two nodes m, n, then layer(n) > layer(m).
+    # Therefore, we iterate the topological sort of the graph in _reverse_ order to obtain the order of measurements.
+
+    for layer, idx in enumerate(reversed(list(nx.topological_generations(dag))), start=1):
+        l_k.update({col_tags[i]: layer for i in idx})
 
     return pf, l_k
 
