@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 import galois
 import networkx as nx
@@ -12,9 +12,6 @@ from graphix.linalg import MatGF2
 from graphix.sim.base_backend import NodeIndex
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
-    from collections.abc import Set as AbstractSet
-
     from graphix.opengraph import OpenGraph
 
 
@@ -216,7 +213,9 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
         """
         solvable_nodes: set[int] = set()
 
-        zero_rows_idx = np.flatnonzero(~kls_matrix.data[:, :n_rows_p].any(axis=1))  # row indices of the 0-rows in the first block of K_{LS}
+        zero_rows_idx = np.flatnonzero(
+            ~kls_matrix.data[:, :n_rows_p].any(axis=1)
+        )  # row indices of the 0-rows in the first block of K_{LS}
         if zero_rows_idx.size:
             for v in non_outputs_set - solved_nodes:
                 j = n_rows_p + ogi.non_outputs.index(v)  # n_rows_p is the column offset from the first block of K_{LS}
@@ -294,8 +293,8 @@ def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
 
     return x
 
-def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
 
+def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
     # Steps 1 and 2
     flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(ogi)
 
