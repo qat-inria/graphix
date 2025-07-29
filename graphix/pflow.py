@@ -246,6 +246,24 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
 
         See Theorem 4.4, step 12.d in Mitosek and Backens, 2024 (arXiv:2410.23439).
         """
+        shift = n_rows_p + n_cols_p  # n_rows_p + n_cols_p is the column offset from the first two blocks of K_{LS}
+        for v in solvable_nodes:
+            # Step 12.d.ii
+            j = ogi.non_outputs.index(v)
+            j_shift = shift + j
+            col = kls_matrix.data[:, j_shift]
+            one_row_idx = np.flatnonzero(col)  # Row indices with 1s
+            k = one_row_idx[-1]  # Check if one_row_idx can be empty
+            for i in one_row_idx[:-1]:
+                kls_matrix.data[i, :] += kls_matrix.data[k, :]  # Step 12.d.iii
+            kls_matrix.data[k, :] += kils_matrix.data[j, :]  # Step 12.d.iv
+
+            # Step 12.d.v
+
+
+            # Step 12.d.vi
+
+
 
     while solved_nodes != non_outputs_set:
         solvable_nodes = get_solvable_nodes()  # Step 12.a
@@ -276,14 +294,14 @@ def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
 
     Notes
     -----
-    This function is not integrated in `:class: graphix.linalg.MatGF2` because it does not perform any checks on the form of `mat` to ensure that it is in REF.
+    This function is not integrated in `:class: graphix.linalg.MatGF2` because it does not perform any checks on the form of `mat` to ensure that it is in REF or that the system is solvable.
     """
     m, n = mat.data.shape
     x = MatGF2(np.zeros(n, dtype=np.int64))
 
     for i in range(m - 1, -1, -1):
         row = mat.data[i]
-        one_col_idx = np.flatnonzero(row)  # Column indices with non-zero values
+        one_col_idx = np.flatnonzero(row)  # Column indices with 1s
         if not one_col_idx.size:
             continue  # Skip if row is all zeros
 
