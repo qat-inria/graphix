@@ -223,12 +223,14 @@ class TestLinAlg:
         for i, row in enumerate(mat_ge.data):
             col_idxs = np.flatnonzero(row)  # Column indices with 1s
             if col_idxs.size == 0:
-                assert not mat_ge.data[i:, :].any()  # If there aren't any 1s, we verify that the remaining rows are all 0
+                assert not mat_ge.data[
+                    i:, :
+                ].any()  # If there aren't any 1s, we verify that the remaining rows are all 0
                 break
             j = col_idxs[0]
             assert j > p
             p = j
 
         # Check 2
-        if (mat_linv := mat_l.right_inverse()):
+        if mat_linv := mat_l.right_inverse():
             assert mat_linv @ mat_ge == mat

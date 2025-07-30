@@ -392,7 +392,7 @@ class MatGF2:
             mat_ref.swap_row(i, p)
 
             # Force zeros below the pivot by xor-ing with the pivot row
-            row_idxs = np.flatnonzero(mat_ref.data[p + 1:, j]) + (p + 1)
+            row_idxs = np.flatnonzero(mat_ref.data[p + 1 :, j]) + (p + 1)
             mat_ref.data[row_idxs, :] ^= mat_ref.data[p, :]
 
             p += 1

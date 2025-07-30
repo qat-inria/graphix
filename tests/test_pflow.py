@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import networkx as nx
 import numpy as np
 import pytest
-from numpy.random import Generator
 
 from graphix.fundamentals import Plane
 from graphix.generator import _pflow2pattern
@@ -22,6 +21,9 @@ from graphix.pflow import (
     find_pflow,
 )
 from graphix.states import PlanarState
+
+if TYPE_CHECKING:
+    from numpy.random import Generator
 
 
 class OpenGraphTestCase(NamedTuple):
@@ -250,7 +252,7 @@ def prepare_test_back_subs() -> list[BackSubsTestCase]:
             BackSubsTestCase(
                 mat=MatGF2([[1, 0, 1], [0, 1, 0], [0, 0, 1]]),
                 b=MatGF2([1, 1, 1]),
-            )
+            ),
         )
     )
 
@@ -339,38 +341,35 @@ class TestPflow:
     def test_find_pflow_determinism(self, test_case: OpenGraphTestCase, fx_rng: Generator) -> None:
         og = test_case.ogi.og
 
-        if len(og.outputs) > len(og.inputs):
-            pass  # Not implemented yet
+        pflow = find_pflow(og)
+
+        if not test_case.has_pflow:
+            assert pflow is None
         else:
-            pflow = find_pflow(og)
+            assert pflow is not None
 
-            if not test_case.has_pflow:
-                assert pflow is None
-            else:
-                assert pflow is not None
+            pattern = _pflow2pattern(
+                graph=og.inside,
+                inputs=set(og.inputs),
+                meas_planes={i: m.plane for i, m in og.measurements.items()},
+                angles={i: m.angle for i, m in og.measurements.items()},
+                p=pflow[0],
+                l_k=pflow[1],
+            )
+            pattern.reorder_output_nodes(og.outputs)
 
-                pattern = _pflow2pattern(
-                    graph=og.inside,
-                    inputs=set(og.inputs),
-                    meas_planes={i: m.plane for i, m in og.measurements.items()},
-                    angles={i: m.angle for i, m in og.measurements.items()},
-                    p=pflow[0],
-                    l_k=pflow[1],
-                )
-                pattern.reorder_output_nodes(og.outputs)
+            alpha = 2 * np.pi * fx_rng.random()
+            state_ref = pattern.simulate_pattern(input_state=PlanarState(Plane.XY, alpha))
 
-                alpha = 2 * np.pi * fx_rng.random()
-                state_ref = pattern.simulate_pattern(input_state=PlanarState(Plane.XY, alpha))
+            n_shots = 5
+            results = []
+            for _ in range(n_shots):
+                state = pattern.simulate_pattern(input_state=PlanarState(Plane.XY, alpha))
+                results.append(np.abs(np.dot(state.flatten().conjugate(), state_ref.flatten())))
 
-                n_shots = 5
-                results = []
-                for _ in range(n_shots):
-                    state = pattern.simulate_pattern(input_state=PlanarState(Plane.XY, alpha))
-                    results.append(np.abs(np.dot(state.flatten().conjugate(), state_ref.flatten())))
+            avg = sum(results) / n_shots
 
-                avg = sum(results) / n_shots
-
-                assert avg == pytest.approx(1)
+            assert avg == pytest.approx(1)
 
     @pytest.mark.parametrize("test_case", prepare_test_back_subs())
     def test_back_substitute(self, test_case: BackSubsTestCase) -> None:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import galois
 import networkx as nx
 import numpy as np
 
@@ -191,9 +190,7 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
     kils_matrix.concatenate(MatGF2(nb_matrix.data[:, :n_cols_p]), axis=1)  # Concatenate N_L matrix
     kils_matrix.concatenate(MatGF2(np.eye(n_cols_p, dtype=np.int_)), axis=1)  # Concatenate identity matrix
 
-    # RREF form is not needed, only REF.
-    # TODO: Implement Gaussian elimination to bring matrix to RREF (more efficient)
-    kls_matrix = MatGF2(galois.GF2(kils_matrix.data).row_reduce(ncols=n_rows_p))
+    kls_matrix = kils_matrix.gauss_elimination(ncols=n_rows_p, copy=True)  # RREF form is not needed, only REF.
 
     # Step 11
     p_matrix = MatGF2(np.zeros((n_rows_p, n_cols_p), dtype=np.int_))
@@ -218,7 +215,9 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
         )  # Row indices of the 0-rows in the first block of K_{LS}
         if row_idxs.size:
             for v in non_outputs_set - solved_nodes:
-                j = n_rows_p + ogi.non_outputs.index(v)  # `n_rows_p`` is the column offset from the first block of K_{LS}
+                j = n_rows_p + ogi.non_outputs.index(
+                    v
+                )  # `n_rows_p` is the column offset from the first block of K_{LS}
                 if not kls_matrix.data[row_idxs, j].any():
                     solvable_nodes.add(v)
 
@@ -227,7 +226,7 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
     def update_p_matrix() -> None:
         """Update `p_matrix`.
 
-        The solution of the linear system associated with node v in `solvable_nodes` corresponds to the column of `p_matrix` associated with node v.
+        The solution of the linear system associated with node :math:`v` in `solvable_nodes` corresponds to the column of `p_matrix` associated with node :math:`v`.
 
         See Theorem 4.4, steps 12.b and 12.c in Mitosek and Backens, 2024 (arXiv:2410.23439).
         """
@@ -247,22 +246,71 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
         See Theorem 4.4, step 12.d in Mitosek and Backens, 2024 (arXiv:2410.23439).
         """
         shift = n_rows_p + n_cols_p  # `n_rows_p` + `n_cols_p` is the column offset from the first two blocks of K_{LS}
+        row_permutation: list[int]
+
+        def reorder(old_pos: int, new_pos: int) -> None:  # Used in step 12.d.vi
+            """Reorder elemetns of `row_permutation`.
+
+            The element at `old_pos` is placed on the right of the element at `new_pos`.
+            Example:
+            ```
+            row_permutation = [0, 1, 2, 3, 4]
+            reorder(1, 3) -> [0, 2, 3, 1, 4]
+            reorder(2, -1) -> [2, 0, 1, 3, 4]
+            ```
+            """
+            val = row_permutation.pop(old_pos)
+            row_permutation.insert(new_pos + (new_pos < old_pos), val)
+
         for v in solvable_nodes:
             # Step 12.d.ii
             j = ogi.non_outputs.index(v)
             j_shift = shift + j
-            row_idxs = np.flatnonzero(kls_matrix.data[:, j_shift])  # Row indices with 1s in column `j_shift`
-            k = row_idxs[-1]  # Check if `row_idxs` can be empty
-            for i in row_idxs[:-1]:
-                kls_matrix.data[i, :] += kls_matrix.data[k, :]  # Step 12.d.iii
-            kls_matrix.data[k, :] += kils_matrix.data[j, :]  # Step 12.d.iv
+            row_idxs = np.flatnonzero(
+                kls_matrix.data[:, j_shift]
+            ).tolist()  # Row indices with 1s in column of node v in third block.
+            k = row_idxs.pop()  # TODO: Could `row_idxs` be empty ?
+
+            # Step 12.d.iii
+            kls_matrix.data[row_idxs, :] += kls_matrix.data[k, :]  # Adding a row to previous rows preserves REF.
+
+            # Step 12.d.iv
+            kls_matrix.data[k, :] += kils_matrix.data[j, :]  # Row `k` may now break REF.
 
             # Step 12.d.v
-
+            pivots = []  # Store pivots for next step.
+            for i, row in enumerate(kls_matrix.data):
+                col_idxs = np.flatnonzero(row[:n_rows_p])  # Column indices with 1s in first block.
+                if i == k:
+                    pivots.append(None if col_idxs.size == 0 else col_idxs[0])
+                    continue
+                if (
+                    col_idxs.size == 0
+                ):  # Row `i` has all zeros in the first block. Only row `k` can break REF, so rows below have all zeros in the first block too.
+                    break
+                p = col_idxs[0]
+                pivots.append(p)
+                if kls_matrix.data[k, p]:  # Row `k` has a 1 in the column corresponding to the leading 1 of row `i`.
+                    kls_matrix.data[k] += kls_matrix.data[i, :]
 
             # Step 12.d.vi
+            row_permutation = list(range(n_cols_p))  # Row indices of `kls_matrix`.
+            n_pivots = len(pivots)
 
+            if n_pivots >= k:  # Row `k` is among non-zero rows
+                if (p0 := pivots[k]) is None:  # Row `k` has all zeros in first block.
+                    reorder(k, n_pivots)  # Move row `k` to the top of the zeros block.
+                else:
+                    new_pos = np.argmax(np.array(pivots) > p0) - 1
+                    reorder(k, int(new_pos))
+            else:  # Row `k` is among zero rows.
+                col_idxs = np.flatnonzero(kls_matrix.data[k, :n_rows_p])
+                if col_idxs.size:  # Row `k` is non-zero.
+                    p0 = col_idxs[0]  # Leading 1 of row `k`.
+                    new_pos = np.argmax(np.array(pivots) > p0) - 1
+                    reorder(k, int(new_pos))
 
+            kls_matrix.permute_row(row_permutation)
 
     while solved_nodes != non_outputs_set:
         solvable_nodes = get_solvable_nodes()  # Step 12.a
@@ -305,7 +353,7 @@ def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
             continue  # Skip if row is all zeros
 
         j = col_idxs[0]
-        # x_j = b_i + sum_{k = j+1}^{n-1} A_{i,k} x_k = b_i + sum_{k} A_{i,k} x_k because A in REF and x_j = 0
+        # x_j = b_i + sum_{k = j+1}^{n-1} A_{i,k} x_k = b_i + sum_{k} x_k because A in REF and x_j = 0
         x.data[j] = b.data[i] ^ np.bitwise_xor.reduce(x.data[col_idxs])
 
     return x
