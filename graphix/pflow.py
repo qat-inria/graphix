@@ -1,3 +1,13 @@
+"""Pauli flow finding algorithm.
+
+This module implements the algorithm presented in [1]. For a given labelled open graph (G, I, O, meas_plane), this algorithm finds a Pauli flow [2] in polynomial time with the number of nodes, :math:`O(N^3)`.
+
+References
+----------
+[1] Mitosek and Backens, 2024 (arXiv:2410.23439).
+[2] Browne et al., 2007 New J. Phys. 9 250 (arXiv:quant-ph/0702212)
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -43,23 +53,23 @@ class OpenGraphIndex:
 
 
 def _get_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
-    r"""Return reduced adjacency matrix (RAdj) of the input open graph.
+    r"""Return the reduced adjacency matrix (RAdj) of the input open graph.
 
     Parameters
     ----------
     ogi : OpenGraphIndex
-        Open graph whose RAdj is to be computed.
+        Open graph whose RAdj is computed.
 
     Returns
     -------
-    adj_red: MatGF2
+    adj_red : MatGF2
         Reduced adjacency matrix.
 
     Notes
     -----
-    The adjacency matrix of a graph :math:`Adj_G` is a :math:`n \times n` matrix
+    The adjacency matrix of a graph :math:`Adj_G` is an :math:`n \times n` matrix.
 
-    The RAdj matrix of an open graph OG is an :math:`(n - n_O) \times (n - n_I)` submatrix of :math:`Adj_G` constructed by removing the output rows and input columns of of :math:`Adj_G`.
+    The RAdj matrix of an open graph OG is an :math:`(n - n_O) \times (n - n_I)` submatrix of :math:`Adj_G` constructed by removing the output rows and input columns of :math:`Adj_G`.
 
     See Definition 3.3 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
@@ -86,12 +96,12 @@ def _get_pflow_matrices(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2]:
     Parameters
     ----------
     ogi : OpenGraphIndex
-        Open graph whose flow-demand and order-demand matrices are to be computed.
+        Open graph whose flow-demand and order-demand matrices are computed.
 
     Returns
     -------
-    flow_demand_matrix: MatGF2
-    order_demand_matrix: MatGF2
+    flow_demand_matrix : MatGF2
+    order_demand_matrix : MatGF2
 
     Notes
     -----
@@ -140,18 +150,18 @@ def _get_pflow_matrices(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2]:
 
 
 def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
-    r"""Construct the correction matrix :math:`C` and the ordering matrix, :math:`NC`, defined as the product of the order-demand matrix :math:`N` and the correction matrix.
+    r"""Construct the correction matrix :math:`C` and the ordering matrix, :math:`NC` for an open graph with equal number of inputs and outputs.
 
     Parameters
     ----------
     ogi : OpenGraphIndex
-        Open graph for which :math:`C` and :math:`NC` are to be computed.
+        Open graph for which :math:`C` and :math:`NC` are computed.
 
     Returns
     -------
-    correction_matrix: MatGF2
+    correction_matrix : MatGF2
         Matrix encoding the correction function.
-    ordering_matrix: MatGF2
+    ordering_matrix : MatGF2
         Matrix encoding the partial ordering between nodes.
 
     or `None`
@@ -159,13 +169,11 @@ def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
 
     Notes
     -----
-    - The correction matrix :math:`C` is an :math:`(n - n_I) \times (n - n_O)` matrix related to the correction function :math:`c(v) = \{u \in \overline{I}|C_{u,v} = 1\}`, where :math:`\overline{I}` are the non-input nodes of `ogi`.
-
-    - The Pauli flow's ordering :math:`<_c` is the transitive closure of :math:`\lhd_c`, where the latter is related to :math:`NC` as :math:`v \lhd_c w \Leftrightarrow (NC)_{w,v} = 1`, for :math:`v, w, \in \overline{O}` two non-output nodes of `ogi`.
+    - The ordering matrix is defined as the product of the order-demand matrix :math:`N` and the correction matrix.
 
     - The function only returns `None` when the flow-demand matrix is not invertible (meaning that `ogi` does not have Pauli flow). The condition that the ordering matrix :math:`NC` must encode a directed acyclic graph (DAG) is verified in a subsequent step by `:func: _get_topological_order`.
 
-    See Definitions 3.4, 3.5 and 3.6, Lemma 3.12, Theorem 3.1, and Algorithm 2 in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    See Definitions 3.4, 3.5 and 3.6, Theorems 3.1 and 4.1, and Algorithm 2 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
     flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(ogi)
 
@@ -180,8 +188,27 @@ def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
 
 
 def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
-    #  Steps 8 - 12
+    r"""Perform the steps 8 - 12 of the general case (larger number of outputs than inputs) algorithm.
 
+    Parameters
+    ----------
+    ogi : OpenGraphIndex
+        Open graph for which the matrix :math:`P` is computed.
+    nb_matrix : MatGF2
+        Matrix :math:`N_B`
+
+    Returns
+    -------
+    p_matrix : MatGF2
+        Matrix encoding the correction function.
+
+    or `None`
+        if the input open graph does not have Pauli flow.
+
+    Notes
+    -----
+    See Theorem 4.4, steps 8 - 12 in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    """
     n_cols_p = len(ogi.non_outputs)
     n_rows_p = len(ogi.og.outputs) - len(ogi.og.inputs)
 
@@ -249,7 +276,7 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
         row_permutation: list[int]
 
         def reorder(old_pos: int, new_pos: int) -> None:  # Used in step 12.d.vi
-            """Reorder elemetns of `row_permutation`.
+            """Reorder the elements of `row_permutation`.
 
             The element at `old_pos` is placed on the right of the element at `new_pos`.
             Example:
@@ -293,7 +320,7 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
                 if kls_matrix.data[k, p]:  # Row `k` has a 1 in the column corresponding to the leading 1 of row `i`.
                     kls_matrix.data[k] += kls_matrix.data[i, :]
 
-            # Step 12.d.vi
+            # Step 12.d.vi. TODO: This step is a bit messy, should be improved.
             row_permutation = list(range(n_cols_p))  # Row indices of `kls_matrix`.
             n_pivots = len(pivots)
 
@@ -329,14 +356,14 @@ def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
 
     Parameters
     ----------
-    A: MatGF2
+    A : MatGF2
         Matrix with shape `(m, n)` containing the LS coefficients in row echelon form (REF).
-    b: MatGF2
+    b : MatGF2
         Matrix with shape `(m,)` containing the constants column vector.
 
     Returns
     -------
-    x: MatGF2
+    x : MatGF2
         Matrix with shape `(n,)` containing the solutions of the LS.
 
     Notes
@@ -360,6 +387,33 @@ def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
 
 
 def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
+    r"""Construct the generalized correction matrix :math:`C'C^B` and the generalized ordering matrix, :math:`NC'C^B` for an open graph with larger number of outputs than inputs.
+
+    Parameters
+    ----------
+    ogi : OpenGraphIndex
+        Open graph for which :math:`C` and :math:`NC` are computed.
+
+    Returns
+    -------
+    correction_matrix : MatGF2
+        Matrix encoding the correction function.
+    ordering_matrix : MatGF2
+        Matrix encoding the partial ordering between nodes.
+
+    or `None`
+        if the input open graph does not have Pauli flow.
+
+    Notes
+    -----
+    - The function returns `None` if
+        a) The flow-demand matrix is not invertible, or
+        b) Not all linear systems of equations associated to the non-output nodes are solvable,
+    meaning that `ogi` does not have Pauli flow.
+    Condition (b) is satisfied when the flow-demand matrix :math:`M` does not have a right inverse :math:`C` such that :math:`NC` represents a directed acyclical graph (DAG).
+
+    See Theorem 4.4 and Algorithm 3 in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    """
     # Steps 1 and 2
     flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(ogi)
 
@@ -393,8 +447,8 @@ def _get_topological_order(ordering_matrix: MatGF2) -> list[list[int]] | None:
 
     Parameters
     ----------
-    ordering_matrix: MatGF2
-        Matrix encoding the partial ordering between nodes intepreted as the adjacency matrix of a directed graph.
+    ordering_matrix : MatGF2
+        Matrix encoding the partial ordering between nodes interpreted as the adjacency matrix of a directed graph.
 
     Returns
     -------
@@ -424,18 +478,18 @@ def _algebraic2pflow(
 
     Parameters
     ----------
-    ogi: OpenGraphIndex
-        Open graph whose Pauli flow is being calculated.
-    correction_matrix: MatGF2
+    ogi : OpenGraphIndex
+        Open graph whose Pauli flow is calculated.
+    correction_matrix : MatGF2
         Matrix encoding the correction function.
-    ordering_matrix: MatGF2
+    ordering_matrix : MatGF2
         Matrix encoding the partial ordering between nodes (DAG).
 
     Returns
     -------
-    pf: dict[int, set[int]]
+    pf : dict[int, set[int]]
         Pauli flow correction function. pf[i] is the set of qubits to be corrected for the measurement of qubit i.
-    l_k: dict[int, int]
+    l_k : dict[int, int]
         Partial order between corrected qubits, such that the pair (`key`, `value`) corresponds to (node, depth).
 
     or `None`
@@ -443,9 +497,9 @@ def _algebraic2pflow(
 
     Notes
     -----
-    - The correction matrix :math:`C` is an :math:`(n - n_I) \times (n - n_O)` matrix related to the correction function :math:`c(v) = \{u \in \overline{I}|C_{u,v} = 1\}`, where :math:`\overline{I}` are the non-input nodes of `ogi`. In other words, the column :math:`v` of :math:`C` encodes the correction set of :math:`v`, :math:`c(v)`.
+    - The correction matrix :math:`C` is an :math:`(n - n_I) \times (n - n_O)` matrix related to the correction function :math:`c(v) = \{u \in I^c|C_{u,v} = 1\}`, where :math:`I^c` are the non-input nodes of `ogi`. In other words, the column :math:`v` of :math:`C` encodes the correction set of :math:`v`, :math:`c(v)`.
 
-    - The Pauli flow's ordering :math:`<_c` is the transitive closure of :math:`\lhd_c`, where the latter is related to the ordering matrix :math:`NC` as :math:`v \lhd_c w \Leftrightarrow (NC)_{w,v} = 1`, for :math:`v, w, \in \overline{O}` two non-output nodes of `ogi`.
+    - The Pauli flow's ordering :math:`<_c` is the transitive closure of :math:`\lhd_c`, where the latter is related to the ordering matrix :math:`NC` as :math:`v \lhd_c w \Leftrightarrow (NC)_{w,v} = 1`, for :math:`v, w, \in O^c` two non-output nodes of `ogi`.
 
     See Definition 3.6, Lemma 3.12, and Theorem 3.1 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
@@ -476,7 +530,27 @@ def _algebraic2pflow(
 
 
 def find_pflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | None:
-    """Return Pauli flow."""
+    """Return a Pauli flow of the input open graph if it exists.
+
+    Parameters
+    ----------
+    og : OpenGraph
+        Open graph whose Pauli flow is calculated.
+
+    Returns
+    -------
+    pf : dict[int, set[int]]
+        Pauli flow correction function. pf[i] is the set of qubits to be corrected for the measurement of qubit i.
+    l_k : dict[int, int]
+        Partial order between corrected qubits, such that the pair (`key`, `value`) corresponds to (node, depth).
+
+    or `None`
+        if the input open graph does not have Pauli flow.
+
+    Notes
+    -----
+    See Theorems 3.1, 4.2 and 4.4, and Algorithms 2 and 3 in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    """
     ni = len(og.inputs)
     no = len(og.outputs)
 

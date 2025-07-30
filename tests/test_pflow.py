@@ -231,12 +231,17 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
     # Non-trivial open graph with pflow and nI != nO
     def get_og_5() -> OpenGraph:
         """Return an open graph with Pauli flow and unequal number of outputs and inputs."""
-        graph: nx.Graph[int] = nx.Graph(
-            [(0, 2), (1, 3), (2, 3), (2, 6), (3, 4), (4, 7), (4, 5), (7, 8)]
-        )
+        graph: nx.Graph[int] = nx.Graph([(0, 2), (1, 3), (2, 3), (2, 6), (3, 4), (4, 7), (4, 5), (7, 8)])
         inputs = [0, 1]
         outputs = [5, 6, 8]
-        meas = {0: Measurement(0.1, Plane.XY), 1: Measurement(0.1, Plane.XY), 2: Measurement(0.0, Plane.XY), 3: Measurement(0, Plane.XY), 4: Measurement(0.5, Plane.XY), 7: Measurement(0, Plane.XY)}
+        meas = {
+            0: Measurement(0.1, Plane.XY),
+            1: Measurement(0.1, Plane.XY),
+            2: Measurement(0.0, Plane.XY),
+            3: Measurement(0, Plane.XY),
+            4: Measurement(0.5, Plane.XY),
+            7: Measurement(0, Plane.XY),
+        }
 
         return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
 
@@ -253,9 +258,7 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
     # Non-trivial open graph with pflow and nI != nO
     def get_og_6() -> OpenGraph:
         """Return an open graph with Pauli flow and unequal number of outputs and inputs."""
-        graph: nx.Graph[int] = nx.Graph(
-            [(0, 2), (1, 2), (2, 3), (3, 4)]
-        )
+        graph: nx.Graph[int] = nx.Graph([(0, 2), (1, 2), (2, 3), (3, 4)])
         inputs = [0, 1]
         outputs = [1, 3, 4]
         meas = {0: Measurement(0.1, Plane.XY), 2: Measurement(0.5, Plane.YZ)}
@@ -275,12 +278,16 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
     # Non-trivial open graph with pflow and nI != nO
     def get_og_7() -> OpenGraph:
         """Return an open graph with Pauli flow and unequal number of outputs and inputs."""
-        graph: nx.Graph[int] = nx.Graph(
-            [(0, 1), (0, 3), (1, 4), (3, 4), (2, 3), (2, 5), (3, 6), (4, 7)]
-        )
+        graph: nx.Graph[int] = nx.Graph([(0, 1), (0, 3), (1, 4), (3, 4), (2, 3), (2, 5), (3, 6), (4, 7)])
         inputs = [1]
         outputs = [6, 2, 7]
-        meas = {0: Measurement(0.1, Plane.XZ), 1: Measurement(0.1, Plane.XY), 3: Measurement(0, Plane.XY), 4: Measurement(0.1, Plane.XY), 5: Measurement(0.1, Plane.YZ)}
+        meas = {
+            0: Measurement(0.1, Plane.XZ),
+            1: Measurement(0.1, Plane.XY),
+            3: Measurement(0, Plane.XY),
+            4: Measurement(0.1, Plane.XY),
+            5: Measurement(0.1, Plane.YZ),
+        }
 
         return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
 
@@ -297,9 +304,7 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
     # Disconnected open graph with pflow and nI != nO
     def get_og_8() -> OpenGraph:
         """Return an open graph with Pauli flow and unequal number of outputs and inputs."""
-        graph: nx.Graph[int] = nx.Graph(
-            [(0, 1), (0, 2), (2, 3), (1, 3), (4, 6)]
-        )
+        graph: nx.Graph[int] = nx.Graph([(0, 1), (0, 2), (2, 3), (1, 3), (4, 6)])
         inputs: list[int] = []
         outputs = [1, 3, 4]
         meas = {0: Measurement(0.5, Plane.XZ), 2: Measurement(0, Plane.YZ), 6: Measurement(0.2, Plane.XY)}
@@ -324,7 +329,13 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
         )
         inputs = [1]
         outputs = [6, 2, 7]
-        meas = {0: Measurement(0.1, Plane.XZ), 1: Measurement(0.1, Plane.XY), 3: Measurement(0, Plane.XY), 4: Measurement(0.1, Plane.XY), 5: Measurement(0.1, Plane.XY)}
+        meas = {
+            0: Measurement(0.1, Plane.XZ),
+            1: Measurement(0.1, Plane.XY),
+            3: Measurement(0, Plane.XY),
+            4: Measurement(0.1, Plane.XY),
+            5: Measurement(0.1, Plane.XY),
+        }
 
         return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
 
@@ -339,11 +350,9 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
     )
 
     # Disconnected open graph without pflow and nI != nO
-    def get_og_8() -> OpenGraph:
+    def get_og_10() -> OpenGraph:
         """Return an open graph without Pauli flow and unequal number of outputs and inputs."""
-        graph: nx.Graph[int] = nx.Graph(
-            [(0, 1), (0, 2), (2, 3), (1, 3), (4, 6)]
-        )
+        graph: nx.Graph[int] = nx.Graph([(0, 1), (0, 2), (2, 3), (1, 3), (4, 6)])
         inputs = [0]
         outputs = [1, 3, 4]
         meas = {0: Measurement(0.1, Plane.XZ), 2: Measurement(0, Plane.YZ), 6: Measurement(0.2, Plane.XY)}
@@ -352,7 +361,7 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     test_cases.append(
         OpenGraphTestCase(
-            ogi=OpenGraphIndex(get_og_8()),
+            ogi=OpenGraphIndex(get_og_10()),
             radj=None,
             flow_demand_mat=None,
             order_demand_mat=None,
