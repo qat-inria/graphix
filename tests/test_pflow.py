@@ -28,9 +28,9 @@ if TYPE_CHECKING:
 
 class OpenGraphTestCase(NamedTuple):
     ogi: OpenGraphIndex
-    radj: MatGF2
-    flow_demand_mat: MatGF2
-    order_demand_mat: MatGF2
+    radj: MatGF2 | None
+    flow_demand_mat: MatGF2 | None
+    order_demand_mat: MatGF2 | None
     has_pflow: bool
 
 
@@ -225,6 +225,141 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
             has_pflow=True,
         )
     )
+
+    # The following tests check the final result only, not the intermediate steps.
+
+    # Non-trivial open graph with pflow and nI != nO
+    def get_og_5() -> OpenGraph:
+        """Return an open graph with Pauli flow and unequal number of outputs and inputs."""
+        graph: nx.Graph[int] = nx.Graph(
+            [(0, 2), (1, 3), (2, 3), (2, 6), (3, 4), (4, 7), (4, 5), (7, 8)]
+        )
+        inputs = [0, 1]
+        outputs = [5, 6, 8]
+        meas = {0: Measurement(0.1, Plane.XY), 1: Measurement(0.1, Plane.XY), 2: Measurement(0.0, Plane.XY), 3: Measurement(0, Plane.XY), 4: Measurement(0.5, Plane.XY), 7: Measurement(0, Plane.XY)}
+
+        return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
+
+    test_cases.append(
+        OpenGraphTestCase(
+            ogi=OpenGraphIndex(get_og_5()),
+            radj=None,
+            flow_demand_mat=None,
+            order_demand_mat=None,
+            has_pflow=True,
+        )
+    )
+
+    # Non-trivial open graph with pflow and nI != nO
+    def get_og_6() -> OpenGraph:
+        """Return an open graph with Pauli flow and unequal number of outputs and inputs."""
+        graph: nx.Graph[int] = nx.Graph(
+            [(0, 2), (1, 2), (2, 3), (3, 4)]
+        )
+        inputs = [0, 1]
+        outputs = [1, 3, 4]
+        meas = {0: Measurement(0.1, Plane.XY), 2: Measurement(0.5, Plane.YZ)}
+
+        return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
+
+    test_cases.append(
+        OpenGraphTestCase(
+            ogi=OpenGraphIndex(get_og_6()),
+            radj=None,
+            flow_demand_mat=None,
+            order_demand_mat=None,
+            has_pflow=True,
+        )
+    )
+
+    # Non-trivial open graph with pflow and nI != nO
+    def get_og_7() -> OpenGraph:
+        """Return an open graph with Pauli flow and unequal number of outputs and inputs."""
+        graph: nx.Graph[int] = nx.Graph(
+            [(0, 1), (0, 3), (1, 4), (3, 4), (2, 3), (2, 5), (3, 6), (4, 7)]
+        )
+        inputs = [1]
+        outputs = [6, 2, 7]
+        meas = {0: Measurement(0.1, Plane.XZ), 1: Measurement(0.1, Plane.XY), 3: Measurement(0, Plane.XY), 4: Measurement(0.1, Plane.XY), 5: Measurement(0.1, Plane.YZ)}
+
+        return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
+
+    test_cases.append(
+        OpenGraphTestCase(
+            ogi=OpenGraphIndex(get_og_7()),
+            radj=None,
+            flow_demand_mat=None,
+            order_demand_mat=None,
+            has_pflow=True,
+        )
+    )
+
+    # Disconnected open graph with pflow and nI != nO
+    def get_og_8() -> OpenGraph:
+        """Return an open graph with Pauli flow and unequal number of outputs and inputs."""
+        graph: nx.Graph[int] = nx.Graph(
+            [(0, 1), (0, 2), (2, 3), (1, 3), (4, 6)]
+        )
+        inputs: list[int] = []
+        outputs = [1, 3, 4]
+        meas = {0: Measurement(0.5, Plane.XZ), 2: Measurement(0, Plane.YZ), 6: Measurement(0.2, Plane.XY)}
+
+        return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
+
+    test_cases.append(
+        OpenGraphTestCase(
+            ogi=OpenGraphIndex(get_og_8()),
+            radj=None,
+            flow_demand_mat=None,
+            order_demand_mat=None,
+            has_pflow=True,
+        )
+    )
+
+    # Non-trivial open graph without pflow and nI != nO
+    def get_og_9() -> OpenGraph:
+        """Return an open graph without Pauli flow and unequal number of outputs and inputs."""
+        graph: nx.Graph[int] = nx.Graph(
+            [(0, 1), (0, 3), (1, 4), (3, 4), (2, 3), (2, 5), (3, 6), (4, 7), (5, 6), (6, 7)]
+        )
+        inputs = [1]
+        outputs = [6, 2, 7]
+        meas = {0: Measurement(0.1, Plane.XZ), 1: Measurement(0.1, Plane.XY), 3: Measurement(0, Plane.XY), 4: Measurement(0.1, Plane.XY), 5: Measurement(0.1, Plane.XY)}
+
+        return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
+
+    test_cases.append(
+        OpenGraphTestCase(
+            ogi=OpenGraphIndex(get_og_9()),
+            radj=None,
+            flow_demand_mat=None,
+            order_demand_mat=None,
+            has_pflow=False,
+        )
+    )
+
+    # Disconnected open graph without pflow and nI != nO
+    def get_og_8() -> OpenGraph:
+        """Return an open graph without Pauli flow and unequal number of outputs and inputs."""
+        graph: nx.Graph[int] = nx.Graph(
+            [(0, 1), (0, 2), (2, 3), (1, 3), (4, 6)]
+        )
+        inputs = [0]
+        outputs = [1, 3, 4]
+        meas = {0: Measurement(0.1, Plane.XZ), 2: Measurement(0, Plane.YZ), 6: Measurement(0.2, Plane.XY)}
+
+        return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
+
+    test_cases.append(
+        OpenGraphTestCase(
+            ogi=OpenGraphIndex(get_og_8()),
+            radj=None,
+            flow_demand_mat=None,
+            order_demand_mat=None,
+            has_pflow=False,
+        )
+    )
+
     return test_cases
 
 
@@ -262,33 +397,34 @@ def prepare_test_back_subs() -> list[BackSubsTestCase]:
 class TestPflow:
     @pytest.mark.parametrize("test_case", prepare_test_og())
     def test_get_reduced_adj(self, test_case: OpenGraphTestCase) -> None:
-        ogi = test_case.ogi
-        radj = _get_reduced_adj(ogi)
-
-        assert radj == test_case.radj
+        if test_case.radj is not None:
+            ogi = test_case.ogi
+            radj = _get_reduced_adj(ogi)
+            assert radj == test_case.radj
 
     @pytest.mark.parametrize("test_case", prepare_test_og())
     def test_get_pflow_matrices(self, test_case: OpenGraphTestCase) -> None:
-        ogi = test_case.ogi
-        flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(ogi)
+        if test_case.flow_demand_mat is not None and test_case.order_demand_mat is not None:
+            ogi = test_case.ogi
+            flow_demand_matrix, order_demand_matrix = _get_pflow_matrices(ogi)
 
-        assert flow_demand_matrix == test_case.flow_demand_mat
-        assert order_demand_matrix == test_case.order_demand_mat
+            assert flow_demand_matrix == test_case.flow_demand_mat
+            assert order_demand_matrix == test_case.order_demand_mat
 
     @pytest.mark.parametrize("test_case", prepare_test_og())
     def test_find_pflow_simple(self, test_case: OpenGraphTestCase) -> None:
-        ogi = test_case.ogi
+        if test_case.flow_demand_mat is not None:
+            ogi = test_case.ogi
+            if len(ogi.og.outputs) == len(ogi.og.inputs):
+                pflow_algebraic = _find_pflow_simple(ogi)
 
-        if len(ogi.og.outputs) == len(ogi.og.inputs):
-            pflow_algebraic = _find_pflow_simple(ogi)
-
-            if not test_case.has_pflow:
-                assert pflow_algebraic is None
-            else:
-                assert pflow_algebraic is not None
-                correction_matrix, _ = pflow_algebraic
-                ident = MatGF2(np.eye(len(ogi.non_outputs), dtype=np.int_))
-                assert test_case.flow_demand_mat @ correction_matrix == ident
+                if not test_case.has_pflow:
+                    assert pflow_algebraic is None
+                else:
+                    assert pflow_algebraic is not None
+                    correction_matrix, _ = pflow_algebraic
+                    ident = MatGF2(np.eye(len(ogi.non_outputs), dtype=np.int_))
+                    assert test_case.flow_demand_mat @ correction_matrix == ident
 
     # This test compares against the existing function for calculating the Pauli flow.
     # Eventually, we should make the test independent of other flow-finding functions
