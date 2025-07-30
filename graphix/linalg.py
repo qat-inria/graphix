@@ -219,7 +219,7 @@ class MatGF2:
 
         Parameters
         ----------
-        b: array_like(otional)
+        b: array_like(optional)
             Left hand side of the system of equations. Defaults to None.
         copy: bool(optional)
             copy the matrix or not. Defaults to False.
@@ -340,7 +340,7 @@ class MatGF2:
         rinv = galois.GF2.Zeros((n, m))
 
         for i, row in enumerate(red):
-            j = np.where(row)[0][0]  # Column index corresponding to the leading 1 in row i
+            j = np.flatnonzero(row)[0]  # Column index corresponding to the leading 1 in row i
             rinv[j, :] = red[i, n:]
 
         return MatGF2(rinv)
@@ -358,3 +358,45 @@ class MatGF2:
     def transpose(self) -> MatGF2:
         r"""Return transpose of the matrix."""
         return MatGF2(self.data.T)
+
+    def gauss_elimination(self, ncols: int | None = None, copy: bool = False) -> MatGF2:
+        """Return row echelon form (REF) by performing Gaussian elimination form.
+
+        Parameters
+        ----------
+        n_cols: int (optional)
+            Number of columns over which to perform Gaussian elimination. The default is `None` which represents the number of columns of the matrix.
+
+        copy: bool (optional)
+            If `True`, the REF matrix is copied into a new instance, otherwise `self` is modified. Defaults to `False`.
+
+        Returns
+        -------
+        mat_ref: MatGF2
+            The matrix in row reduced form.
+
+        Adapted from `:func: galois.FieldArray.row_reduce`, which renders the matrix in row-reduced echelon form (RREF) and specialized for GF(2).
+        """
+        ncols = self.data.shape[1] if ncols is None else ncols
+        mat_ref = MatGF2(self.data) if copy else self
+        p = 0  # The pivot
+
+        for j in range(ncols):
+            # Find a pivot in column `j` at or below row `p`
+            row_idxs = np.flatnonzero(mat_ref.data[p:, j])
+            if row_idxs.size == 0:
+                continue
+            i = p + row_idxs[0]  # Row with a pivot
+
+            # Swap row `p` and `i`. The pivot is now located at row `p`.
+            mat_ref.swap_row(i, p)
+
+            # Force zeros below the pivot by xor-ing with the pivot row
+            row_idxs = np.flatnonzero(mat_ref.data[p + 1:, j]) + (p + 1)
+            mat_ref.data[row_idxs, :] ^= mat_ref.data[p, :]
+
+            p += 1
+            if p == mat_ref.data.shape[0]:
+                break
+
+        return mat_ref

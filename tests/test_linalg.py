@@ -63,7 +63,7 @@ def prepare_test_matrix() -> list[LinalgTestCase]:
             10,
             np.ones(10).reshape(10, 1).astype(int),
             np.ones(10).reshape(10, 1).astype(int),
-            list(np.ones((10, 1))),
+            list(np.ones((10, 1), dtype=np.int_)),
             0,
             True,
         ),
@@ -195,7 +195,40 @@ class TestLinAlg:
 
         if test_case.right_invertible:
             assert rinv is not None
-            ident = MatGF2(np.eye(mat.data.shape[0], dtype=np.int64))
+            ident = MatGF2(np.eye(mat.data.shape[0], dtype=np.int_))
             assert mat @ rinv == ident
         else:
             assert rinv is None
+
+    @pytest.mark.parametrize("test_case", prepare_test_matrix())
+    def test_gaussian_elimination(self, test_case: LinalgTestCase) -> None:
+        """Test gaussian elimination (GE).
+
+        It tests that:
+            1) Matrix is in row echelon form (REF).
+            2) The procedure only entails row operations.
+
+        Check (2) implies that the GE procedure can be represented by a linear transformation. Thefore, we perform GE on :math:`A = [M|1]`, with :math:`M` the test matrix and :math:`1` the identiy, and we verify that :math:`M = L^{-1}M'`, where :math:`M', L` are the left and right blocks of :math:`A` after gaussian elimination.
+        """
+        mat = test_case.matrix
+        nrows, ncols = mat.data.shape
+        mat_ext = mat.copy()
+        mat_ext.concatenate(MatGF2(np.eye(nrows, dtype=np.int_)))
+        mat_ext.gauss_elimination(ncols=ncols)
+        mat_ge = MatGF2(mat_ext.data[:, :ncols])
+        mat_l = MatGF2(mat_ext.data[:, ncols:])
+
+        # Check 1
+        p = -1  # pivot
+        for i, row in enumerate(mat_ge.data):
+            col_idxs = np.flatnonzero(row)  # Column indices with 1s
+            if col_idxs.size == 0:
+                assert not mat_ge.data[i:, :].any()  # If there aren't any 1s, we verify that the remaining rows are all 0
+                break
+            j = col_idxs[0]
+            assert j > p
+            p = j
+
+        # Check 2
+        if (mat_linv := mat_l.right_inverse()):
+            assert mat_linv @ mat_ge == mat

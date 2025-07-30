@@ -68,7 +68,7 @@ def _get_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
     row_tags = ogi.non_outputs
     col_tags = ogi.non_inputs
 
-    adj_red = MatGF2(np.zeros((len(row_tags), len(col_tags)), dtype=np.int64))
+    adj_red = MatGF2(np.zeros((len(row_tags), len(col_tags)), dtype=np.int_))
 
     for n1, n2 in graph.edges:
         if n1 in row_tags and n2 in col_tags:
@@ -189,14 +189,14 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
     # Steps 8, 9 and 10
     kils_matrix = MatGF2(nb_matrix.data[:, n_cols_p:])  # N_R matrix
     kils_matrix.concatenate(MatGF2(nb_matrix.data[:, :n_cols_p]), axis=1)  # Concatenate N_L matrix
-    kils_matrix.concatenate(MatGF2(np.eye(n_cols_p, dtype=np.int64)), axis=1)  # Concatenate identity matrix
+    kils_matrix.concatenate(MatGF2(np.eye(n_cols_p, dtype=np.int_)), axis=1)  # Concatenate identity matrix
 
     # RREF form is not needed, only REF.
     # TODO: Implement Gaussian elimination to bring matrix to RREF (more efficient)
     kls_matrix = MatGF2(galois.GF2(kils_matrix.data).row_reduce(ncols=n_rows_p))
 
     # Step 11
-    p_matrix = MatGF2(np.zeros((n_rows_p, n_cols_p), dtype=np.int64))
+    p_matrix = MatGF2(np.zeros((n_rows_p, n_cols_p), dtype=np.int_))
     solved_nodes: set[int] = set()
     non_outputs_set = set(ogi.non_outputs)
 
@@ -213,13 +213,13 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
         """
         solvable_nodes: set[int] = set()
 
-        zero_rows_idx = np.flatnonzero(
+        row_idxs = np.flatnonzero(
             ~kls_matrix.data[:, :n_rows_p].any(axis=1)
-        )  # row indices of the 0-rows in the first block of K_{LS}
-        if zero_rows_idx.size:
+        )  # Row indices of the 0-rows in the first block of K_{LS}
+        if row_idxs.size:
             for v in non_outputs_set - solved_nodes:
-                j = n_rows_p + ogi.non_outputs.index(v)  # n_rows_p is the column offset from the first block of K_{LS}
-                if not kls_matrix.data[zero_rows_idx, j].any():
+                j = n_rows_p + ogi.non_outputs.index(v)  # `n_rows_p`` is the column offset from the first block of K_{LS}
+                if not kls_matrix.data[row_idxs, j].any():
                     solvable_nodes.add(v)
 
         return solvable_nodes
@@ -246,15 +246,14 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
 
         See Theorem 4.4, step 12.d in Mitosek and Backens, 2024 (arXiv:2410.23439).
         """
-        shift = n_rows_p + n_cols_p  # n_rows_p + n_cols_p is the column offset from the first two blocks of K_{LS}
+        shift = n_rows_p + n_cols_p  # `n_rows_p` + `n_cols_p` is the column offset from the first two blocks of K_{LS}
         for v in solvable_nodes:
             # Step 12.d.ii
             j = ogi.non_outputs.index(v)
             j_shift = shift + j
-            col = kls_matrix.data[:, j_shift]
-            one_row_idx = np.flatnonzero(col)  # Row indices with 1s
-            k = one_row_idx[-1]  # Check if one_row_idx can be empty
-            for i in one_row_idx[:-1]:
+            row_idxs = np.flatnonzero(kls_matrix.data[:, j_shift])  # Row indices with 1s in column `j_shift`
+            k = row_idxs[-1]  # Check if `row_idxs` can be empty
+            for i in row_idxs[:-1]:
                 kls_matrix.data[i, :] += kls_matrix.data[k, :]  # Step 12.d.iii
             kls_matrix.data[k, :] += kils_matrix.data[j, :]  # Step 12.d.iv
 
@@ -297,17 +296,17 @@ def _back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
     This function is not integrated in `:class: graphix.linalg.MatGF2` because it does not perform any checks on the form of `mat` to ensure that it is in REF or that the system is solvable.
     """
     m, n = mat.data.shape
-    x = MatGF2(np.zeros(n, dtype=np.int64))
+    x = MatGF2(np.zeros(n, dtype=np.int_))
 
     for i in range(m - 1, -1, -1):
         row = mat.data[i]
-        one_col_idx = np.flatnonzero(row)  # Column indices with 1s
-        if not one_col_idx.size:
+        col_idxs = np.flatnonzero(row)  # Column indices with 1s
+        if col_idxs.size == 0:
             continue  # Skip if row is all zeros
 
-        j = one_col_idx[0]
+        j = col_idxs[0]
         # x_j = b_i + sum_{k = j+1}^{n-1} A_{i,k} x_k = b_i + sum_{k} A_{i,k} x_k because A in REF and x_j = 0
-        x.data[j] = b.data[i] ^ np.bitwise_xor.reduce(x.data[one_col_idx])
+        x.data[j] = b.data[i] ^ np.bitwise_xor.reduce(x.data[col_idxs])
 
     return x
 
@@ -332,7 +331,7 @@ def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
         return None
 
     # Step 13
-    cb_matrix = MatGF2(np.eye(len(ogi.non_outputs), dtype=np.int64))
+    cb_matrix = MatGF2(np.eye(len(ogi.non_outputs), dtype=np.int_))
     cb_matrix.concatenate(p_matrix, axis=0)
 
     correction_matrix = c_prime_matrix @ cb_matrix

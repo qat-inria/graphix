@@ -285,7 +285,7 @@ class TestPflow:
             else:
                 assert pflow_algebraic is not None
                 correction_matrix, _ = pflow_algebraic
-                ident = MatGF2(np.eye(len(ogi.non_outputs), dtype=np.int64))
+                ident = MatGF2(np.eye(len(ogi.non_outputs), dtype=np.int_))
                 assert test_case.flow_demand_mat @ correction_matrix == ident
 
     # This test compares against the existing function for calculating the Pauli flow.
