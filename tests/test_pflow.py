@@ -435,53 +435,6 @@ class TestPflow:
                     ident = MatGF2(np.eye(len(ogi.non_outputs), dtype=np.int_))
                     assert test_case.flow_demand_mat @ correction_matrix == ident
 
-    # This test compares against the existing function for calculating the Pauli flow.
-    # Eventually, we should make the test independent of other flow-finding functions
-    @pytest.mark.skip(reason="Bug in `graphix.gflow.find_pauliflow`")
-    @pytest.mark.parametrize("test_case", prepare_test_og())
-    def test_find_pflow(self, test_case: OpenGraphTestCase, fx_rng: Generator) -> None:
-        og = test_case.ogi.og
-        # TODO: Refactor to take open graph as input
-        graph = og.inside
-        inputs = set(og.inputs)
-        outputs = set(og.outputs)
-        meas_planes = {i: m.plane for i, m in og.measurements.items()}
-        meas_angles = {i: m.angle for i, m in og.measurements.items()}
-
-        if len(outputs) > len(inputs):
-            pass  # Not implented yet
-        else:
-            pflow = find_pflow(og)
-            pflow_ref = find_pauliflow(
-                graph=og.inside, iset=inputs, oset=outputs, meas_planes=meas_planes, meas_angles=meas_angles
-            )
-
-            if pflow is None:
-                assert pflow_ref[0] is None
-            else:
-                pattern = _pflow2pattern(
-                    graph=graph, angles=meas_angles, inputs=inputs, meas_planes=meas_planes, p=pflow[0], l_k=pflow[1]
-                )
-                pattern.reorder_output_nodes(outputs)
-
-                # The method og.to_pattern() will first try to construct the pattern from a causal flow, then the general flow and finally the Pauli flow. In general the corresponding patterns might represent different unitaries, therefore we calculate the reference pattern with _pflow2pattern instead.
-
-                pattern_ref = _pflow2pattern(
-                    graph=graph,
-                    angles=meas_angles,
-                    inputs=inputs,
-                    meas_planes=meas_planes,
-                    p=pflow_ref[0],
-                    l_k=pflow_ref[1],
-                )
-                pattern_ref.reorder_output_nodes(outputs)
-
-                alpha = 2 * np.pi * fx_rng.random()
-                state = pattern.simulate_pattern(input_state=PlanarState(Plane.XY, alpha))
-                state_ref = pattern_ref.simulate_pattern(input_state=PlanarState(Plane.XY, alpha))
-
-                assert np.abs(np.dot(state.flatten().conjugate(), state_ref.flatten())) == pytest.approx(1)
-
     @pytest.mark.parametrize("test_case", prepare_test_og())
     def test_find_pflow_determinism(self, test_case: OpenGraphTestCase, fx_rng: Generator) -> None:
         og = test_case.ogi.og

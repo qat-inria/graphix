@@ -259,8 +259,8 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
         """
         for v in solvable_nodes:
             j = ogi.non_outputs.index(v)
-            j_shift = n_rows_p + j  # n_rows_p is the column offset from the first block of K_{LS}
-            mat = MatGF2(kls_matrix.data[:, :n_rows_p])  # first block of kls, in row echelon form.
+            j_shift = n_rows_p + j  # `n_rows_p` is the column offset from the first block of K_{LS}
+            mat = MatGF2(kls_matrix.data[:, :n_rows_p])  # first block of K_{LS}, in row echelon form.
             b = MatGF2(kls_matrix.data[:, j_shift])
             x = _back_substitute(mat, b)
             p_matrix.data[:, j] = x.data
@@ -310,13 +310,12 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
                 col_idxs = np.flatnonzero(row[:n_rows_p])  # Column indices with 1s in first block.
                 if i == k:
                     pivots.append(None if col_idxs.size == 0 else col_idxs[0])
+                    # We don't break the loop even if row `k` is 0 in the first block because we are storing all pivots in this loop too.
                     continue
-                if (
-                    col_idxs.size == 0
-                ):  # Row `i` has all zeros in the first block. Only row `k` can break REF, so rows below have all zeros in the first block too.
+                if col_idxs.size == 0:
+                    # Row `i` has all zeros in the first block. Only row `k` can break REF, so rows below have all zeros in the first block too.
                     break
-                p = col_idxs[0]
-                pivots.append(p)
+                pivots.append(p := col_idxs[0])
                 if kls_matrix.data[k, p]:  # Row `k` has a 1 in the column corresponding to the leading 1 of row `i`.
                     kls_matrix.data[k] += kls_matrix.data[i, :]
 
@@ -392,7 +391,7 @@ def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
     Parameters
     ----------
     ogi : OpenGraphIndex
-        Open graph for which :math:`C` and :math:`NC` are computed.
+        Open graph for which :math:`C'C^B` and :math:`NC'C^B` are computed.
 
     Returns
     -------
