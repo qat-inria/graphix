@@ -319,7 +319,7 @@ def _get_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
                 if kls_matrix.data[k, p]:  # Row `k` has a 1 in the column corresponding to the leading 1 of row `i`.
                     kls_matrix.data[k] += kls_matrix.data[i, :]
 
-            # Step 12.d.vi. TODO: This step is a bit messy, should be improved.
+            # Step 12.d.vi. TODO: This step is a bit messy, try to improve
             row_permutation = list(range(n_cols_p))  # Row indices of `kls_matrix`.
             n_pivots = len(pivots)
 
