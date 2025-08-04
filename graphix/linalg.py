@@ -11,7 +11,7 @@ import sympy as sp
 class MatGF2:
     """Matrix on GF2 field."""
 
-    def __init__(self, data):
+    def __init__(self, data) -> None:
         """Construct a matrix of GF2.
 
         Parameters

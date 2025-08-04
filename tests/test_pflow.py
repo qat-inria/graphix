@@ -8,7 +8,6 @@ import pytest
 
 from graphix.fundamentals import Plane
 from graphix.generator import _pflow2pattern
-from graphix.gflow import find_pauliflow
 from graphix.linalg import MatGF2
 from graphix.measurements import Measurement
 from graphix.opengraph import OpenGraph
