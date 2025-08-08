@@ -11,7 +11,7 @@ import sympy as sp
 class MatGF2:
     """Matrix on GF2 field."""
 
-    def __init__(self, data):
+    def __init__(self, data) -> None:
         """Construct a matrix of GF2.
 
         Parameters
@@ -32,9 +32,11 @@ class MatGF2:
         """Return the displayable string of the matrix."""
         return str(self.data)
 
-    def __eq__(self, other: MatGF2) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Return `True` if two matrices are equal, `False` otherwise."""
-        return np.all(self.data == other.data)
+        if not isinstance(other, MatGF2):
+            return NotImplemented
+        return bool(np.all(self.data == other.data))
 
     def __add__(self, other: npt.NDArray | MatGF2) -> MatGF2:
         """Add two matrices."""
@@ -59,6 +61,23 @@ class MatGF2:
         if isinstance(other, np.ndarray):
             other = MatGF2(other)
         return MatGF2(self.data @ other.data)
+
+    def __getitem__(self, key) -> MatGF2:
+        """Allow numpy-style slicing."""
+        return MatGF2(self.data.__getitem__(key))
+
+    def __setitem__(self, key, value) -> None:
+        """Assign new value to data field.
+
+        Verification that `value` is a valid finite field element is done at the level of the `galois.GF2__setitem__` method.
+        """
+        if isinstance(value, MatGF2):
+            value = value.data
+        self.data.__setitem__(key, value)
+
+    def __bool__(self) -> bool:
+        """Define truthiness of `MatGF2` following galois (and, therefore, numpy style."""
+        return self.data.__bool__()
 
     def copy(self) -> MatGF2:
         """Return a copy of the matrix."""
@@ -99,14 +118,14 @@ class MatGF2:
         self.data = np.insert(self.data, col, array_to_add, axis=1)
 
     def concatenate(self, other: MatGF2, axis: int = 1) -> None:
-        """Concatinate two matrices.
+        """Concatenate two matrices.
 
         Parameters
         ----------
         other: MatGF2
-            matrix to concatinate
+            matrix to concatenate
         axis: int(optional)
-            axis to concatinate. Defaults to 1.
+            axis to concatenate. Defaults to 1.
         """
         self.data = np.concatenate((self.data, other.data), axis=axis)
 
@@ -206,9 +225,8 @@ class MatGF2:
         int: int
             rank of the matrix
         """
-        mat_a = self.forward_eliminate(copy=True)[0] if not self.is_canonical_form() else self
-        nonzero_index = np.diag(mat_a.data).nonzero()
-        return len(nonzero_index[0])
+        mat_a = galois.GF2(self.data).row_reduce() if not self.is_canonical_form() else self.data
+        return int(np.sum(mat_a.any(axis=1)))
 
     def forward_eliminate(self, b=None, copy=False) -> tuple[MatGF2, MatGF2, list[int], list[int]]:
         r"""Forward eliminate the matrix.
@@ -219,7 +237,7 @@ class MatGF2:
 
         Parameters
         ----------
-        b: array_like(otional)
+        b: array_like(optional)
             Left hand side of the system of equations. Defaults to None.
         copy: bool(optional)
             copy the matrix or not. Defaults to False.
@@ -313,3 +331,95 @@ class MatGF2:
         x = np.array(x).T
 
         return x, kernels
+
+    def right_inverse(self) -> MatGF2 | None:
+        r"""Return any right inverse of the matrix.
+
+        Returns
+        -------
+        rinv: MatGF2
+            Any right inverse of the matrix.
+        or `None`
+            If the matrix does not have a right inverse.
+
+        Notes
+        -----
+        Let us consider a matrix :math:`A` of size :math:`(m \times n)`. The right inverse is a matrix :math:`B` of size :math:`(n \times m)` s.t. :math:`AB = I` where :math:`I` is the identity matrix.
+        - The right inverse only exists if :math:`rank(A) = m`. Therefore, it is necessary but not sufficient that :math:`m ≤ n`.
+        - The right inverse is unique only if :math:`m=n`.
+        """
+        m, n = self.data.shape
+        if m > n:
+            return None
+
+        ident = galois.GF2.Identity(m)
+        aug = galois.GF2(np.hstack([self.data, ident]))
+        red = aug.row_reduce(ncols=n)  # Reduced row echelon form
+
+        # Check that rank of right block is equal to the number of rows.
+        # We don't use `MatGF2.get_rank()` to avoid row-reducing twice.
+        if m != int(np.sum(red[:, :n].any(axis=1))):
+            return None
+        rinv = galois.GF2.Zeros((n, m))
+
+        for i, row in enumerate(red):
+            j = np.flatnonzero(row)[0]  # Column index corresponding to the leading 1 in row i
+            rinv[j, :] = red[i, n:]
+
+        return MatGF2(rinv)
+
+    def null_space(self) -> MatGF2:
+        r"""Return the null space of the matrix.
+
+        Returns
+        -------
+        MatGF2
+            The rows of the basis matrix are the basis vectors that span the null space. The number of rows of the basis matrix is the dimension of the null space.
+        """
+        return MatGF2(galois.GF2(self.data).null_space())
+
+    def transpose(self) -> MatGF2:
+        r"""Return transpose of the matrix."""
+        return MatGF2(self.data.T)
+
+    def gauss_elimination(self, ncols: int | None = None, copy: bool = False) -> MatGF2:
+        """Return row echelon form (REF) by performing Gaussian elimination form.
+
+        Parameters
+        ----------
+        n_cols: int (optional)
+            Number of columns over which to perform Gaussian elimination. The default is `None` which represents the number of columns of the matrix.
+
+        copy: bool (optional)
+            If `True`, the REF matrix is copied into a new instance, otherwise `self` is modified. Defaults to `False`.
+
+        Returns
+        -------
+        mat_ref: MatGF2
+            The matrix in row reduced form.
+
+        Adapted from `:func: galois.FieldArray.row_reduce`, which renders the matrix in row-reduced echelon form (RREF) and specialized for GF(2).
+        """
+        ncols = self.data.shape[1] if ncols is None else ncols
+        mat_ref = MatGF2(self.data) if copy else self
+        p = 0  # The pivot
+
+        for j in range(ncols):
+            # Find a pivot in column `j` at or below row `p`
+            row_idxs = np.flatnonzero(mat_ref.data[p:, j])
+            if row_idxs.size == 0:
+                continue
+            i = p + row_idxs[0]  # Row with a pivot
+
+            # Swap row `p` and `i`. The pivot is now located at row `p`.
+            mat_ref.swap_row(i, p)
+
+            # Force zeros below the pivot by xor-ing with the pivot row
+            row_idxs = np.flatnonzero(mat_ref.data[p + 1 :, j]) + (p + 1)
+            mat_ref.data[row_idxs, :] ^= mat_ref.data[p, :]
+
+            p += 1
+            if p == mat_ref.data.shape[0]:
+                break
+
+        return mat_ref
