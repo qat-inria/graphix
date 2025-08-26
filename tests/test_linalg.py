@@ -26,6 +26,12 @@ class BackSubsTestCase(NamedTuple):
     b: MatGF2
 
 
+class LSTestCase(NamedTuple):
+    mat: MatGF2
+    b: MatGF2
+    solvable: bool
+
+
 def prepare_test_matrix() -> list[LinalgTestCase]:
     return [
         # empty matrix
@@ -144,6 +150,26 @@ def prepare_test_back_subs() -> list[BackSubsTestCase]:
                 mat=MatGF2([[1, 0, 1], [0, 1, 0], [0, 0, 1]]),
                 b=MatGF2([1, 1, 1]),
             ),
+        )
+    )
+
+    return test_cases
+
+
+def prepare_test_ls() -> list[LSTestCase]:
+    test_cases: list[LSTestCase] = []
+
+    test_cases.extend(
+        (
+            LSTestCase(mat=MatGF2([[1, 0, 1, 1], [0, 1, 0, 1], [0, 0, 0, 1]]), b=MatGF2([1, 0, 0]), solvable=True),
+            LSTestCase(
+                mat=MatGF2([[0, 0, 1, 1, 0], [1, 1, 0, 1, 1], [1, 0, 0, 1, 0]]), b=MatGF2([0, 0, 0]), solvable=True
+            ),
+            LSTestCase(mat=MatGF2([[0, 1, 0], [1, 1, 0]]), b=MatGF2([1, 1]), solvable=True),
+            LSTestCase(mat=MatGF2([[0, 1, 0], [1, 0, 0], [1, 0, 1]]), b=MatGF2([1, 1, 0]), solvable=True),
+            LSTestCase(mat=MatGF2([[0, 0], [0, 0]]), b=MatGF2([0, 0]), solvable=True),
+            LSTestCase(mat=MatGF2([[0, 0], [0, 0]]), b=MatGF2([1, 0]), solvable=False),
+            LSTestCase(mat=MatGF2([[0, 1, 1], [1, 0, 1], [1, 0, 1]]), b=MatGF2([1, 1, 0]), solvable=False),
         )
     )
 
@@ -280,3 +306,16 @@ class TestLinAlg:
         x = back_substitute(mat, b)
 
         assert mat @ x == b
+
+    @pytest.mark.parametrize("test_case", prepare_test_ls())
+    def test_ls(self, test_case: LSTestCase) -> None:
+        mat = test_case.mat
+        b = test_case.b
+
+        x = mat.solve_ls(b)
+
+        if test_case.solvable:
+            assert x is not None
+            assert mat @ x == b
+        else:
+            assert x is None

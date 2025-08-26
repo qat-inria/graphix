@@ -424,6 +424,44 @@ class MatGF2:
 
         return mat_ref
 
+    def solve_ls(self, b: MatGF2) -> MatGF2 | None:
+        r"""Solve the linear system (LS) `mat @ x == b`.
+
+        Parameters
+        ----------
+        mat : MatGF2
+            Matrix with shape `(m, n)` containing the LS coefficients in row echelon form (REF).
+        b : MatGF2
+            Matrix with shape `(m,)` containing the constants column vector.
+
+        Returns
+        -------
+        x : MatGF2
+            Matrix with shape `(n,)` containing the solutions of the LS.
+        or `None`
+            if the LS is not solvable.
+        """
+        m, n = self.data.shape
+        if not b.data.shape == (m,):
+            raise ValueError(
+                f"Dimension mismatch: `self` has dimensions {self.data.shape} and `b` has dimensions {b.data.shape}"
+            )
+
+        mat = self.copy()
+        b_ext = b.copy()
+        b_ext.data = b_ext.data.reshape((m, 1))
+
+        mat.concatenate(b_ext, axis=1)
+        mat.gauss_elimination(ncols=n)
+
+        # The LS is solvable iff the "constants" column of the gaussian-reduced system has 0s in rows which are 0 in the "coefficients" block.
+        row_zero_idxs = np.flatnonzero(~mat.data[:, :n].any(axis=1))  # Row indices of the 0-rows.
+
+        if mat.data[row_zero_idxs, -1].any():  # not solvable
+            return None
+
+        return back_substitute(mat[:, :n], mat[:, -1])
+
 
 def back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
     r"""Solve the linear system (LS) `mat @ x == b`.
@@ -443,6 +481,8 @@ def back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
     Notes
     -----
     This function is not integrated in `:class: graphix.linalg.MatGF2` because it does not perform any checks on the form of `mat` to ensure that it is in REF or that the system is solvable.
+
+    See related :func:`MatGF2.solve_ls`.
     """
     m, n = mat.data.shape
     x = MatGF2(np.zeros(n, dtype=np.int_))
