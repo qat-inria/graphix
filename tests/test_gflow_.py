@@ -8,7 +8,7 @@ import pytest
 
 from graphix.fundamentals import Plane
 from graphix.generator import _gflow2pattern
-from graphix.gflow_ import _get_a_matrix, find_gflow
+from graphix.gflow_ import _get_subadj_matrices, find_gflow
 from graphix.linalg import MatGF2
 from graphix.measurements import Measurement
 from graphix.opengraph import OpenGraph
@@ -99,28 +99,30 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
         }
         return OpenGraph(inside=graph, inputs=inputs, outputs=outputs, measurements=meas)
 
-    # test_cases.append(
-    #     OpenGraphTestCase(
-    #         og=get_og_3(),
-    #         has_gflow=False,
-    #     )
-    # )
+    test_cases.append(
+        OpenGraphTestCase(
+            og=get_og_3(),
+            has_gflow=False,
+        )
+    )
 
     return test_cases
 
 
 class TestGflow:
     def test_find_get_a_matrix(self) -> None:
-        graph: nx.Graph[int] = nx.Graph([(0, 1), (1, 3), (3, 4), (3, 5), (2, 4), (2, 5), (0, 5)])
-        row_tags = NodeIndex()
-        row_tags.extend([0, 3, 2])
-        col_tags = NodeIndex()
-        col_tags.extend([1, 4, 5])
+        graph: nx.Graph[int] = nx.Graph([(0, 1), (1, 3), (3, 4), (3, 5), (2, 4), (2, 5), (0, 5), (0, 3)])
+        non_output_mapping = NodeIndex()
+        non_output_mapping.extend([0, 3, 2])
+        corr_candidates_mapping = NodeIndex()
+        corr_candidates_mapping.extend([1, 4, 5])
 
-        a_matrix = _get_a_matrix(graph, row_tags, col_tags)
+        a_matrix, b_matrix = _get_subadj_matrices(graph, non_output_mapping, corr_candidates_mapping)
         a_matrix_ref = MatGF2([[1, 0, 1], [1, 1, 1], [0, 1, 1]])
+        b_matrix_ref = MatGF2([[0, 1, 0], [1, 0, 0], [0, 0, 0]])
 
         assert a_matrix == a_matrix_ref
+        assert b_matrix == b_matrix_ref
 
     @pytest.mark.parametrize("test_case", prepare_test_og())
     def test_find_gflow_determinism(self, test_case: OpenGraphTestCase, fx_rng: Generator) -> None:
