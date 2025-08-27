@@ -35,12 +35,12 @@ def find_gflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
     Parameters
     ----------
     og : OpenGraph
-        Open graph whose Pauli flow is calculated.
+        Open graph whose gflow is calculated.
 
     Returns
     -------
     gf : dict[int, set[int]]
-        gflow correction function. `gf[i]` is the set of qubits to be corrected for the measurement of qubit `i`.
+        Gflow correction function. `gf[i]` is the set of qubits to be corrected for the measurement of qubit `i`.
     l_k : dict[int, int]
         Partial order between corrected qubits, such that the pair (`key`, `value`) corresponds to (node, depth).
 
@@ -63,7 +63,7 @@ def find_gflow(og: OpenGraph) -> tuple[dict[int, set[int]], dict[int, int]] | No
 
 
 def _gflowaux(
-    graph: nx.Graph,
+    graph: nx.Graph[int],
     iset: AbstractSet[int],
     oset: AbstractSet[int],
     meas_planes: Mapping[int, Plane],
@@ -86,14 +86,14 @@ def _gflowaux(
     k : int
         Current layer number.
     gf : dict[int, set[int]]
-        gflow correction function. `gf[i]` is the set of qubits to be corrected for the measurement of qubit `i`.
+        Gflow correction function. `gf[i]` is the set of qubits to be corrected for the measurement of qubit `i`.
     l_k : dict[int, int]
         Partial order between corrected qubits, such that the pair (`key`, `value`) corresponds to (node, depth).
 
     Returns
     -------
     gf : dict[int, set[int]]
-        gflow correction function. gf[i] is the set of qubits to be corrected for the measurement of qubit i.
+        Gflow correction function. gf[i] is the set of qubits to be corrected for the measurement of qubit i.
     l_k : dict[int, int]
         Partial order between corrected qubits, such that the pair (`key`, `value`) corresponds to (node, depth).
 
@@ -105,10 +105,10 @@ def _gflowaux(
         - :math:`Odd(K') \cap \overline{O} = \{u\}` if `u` is measured in plane XY,
         - :math:`Odd(K' \cup \{u\}) \cap \overline{O} = \{u\}` if `u` is measured in plane XZ,
         - :math:`Odd(K' \cup \{u\}) \cap \overline{O} = \empty` if `u` is measured in plane YZ.
-    This amounts to solving the linear system :math:`A x = b` over :math:`GF(2)`, where:
-        - :math:`A` is a submatrix of the adjancency of the open graph with rows and columns respectively corresponding to non-output and correcting-candidates nodes,
+    Finding :math:`K'` amounts to solving the linear system :math:`A x = b` over :math:`GF(2)`, where:
+        - :math:`A` is a submatrix of the adjancency of the open graph with rows and columns respectively corresponding to non-output and correcting-candidates nodes, i.e., with dimension :math:`(|\overline{O}|, |O'|)`,
         - :math:`x` is a column vector with :math:`|O'|` lenght whose non-zero elements correspond to nodes in :math:`K`,
-        - :math:`b` is a column vector with :math:`|\overline{O}|` lenght which depends on the measuring plane of the node we are attempting to correct (:math:`u`). In particular, it is :
+        - :math:`b` is a column vector with :math:`|\overline{O}|` lenght which depends on the measuring plane of the node we are attempting to correct (:math:`u`). In particular, it is
             - a zero-vector with 1 at the `u`-entry if `u` is measured in plane XY,
             - a zero-vector with 1 at the `u`-entry plus the `u` column of the graph adjacency matrix if `u` is measured in plane XZ,
             - the `u` column of the graph adjacency matrix if `u` is measured in plane YZ.
@@ -146,8 +146,10 @@ def _gflowaux(
             k_prime_set = set()
             x = back_substitute(a_matrix[:, :n_corr], a_matrix[:, j])
             k_prime_set |= {corr_candidates_mapping[idx] for idx in np.flatnonzero(x.data)}
-            if meas_planes[node] in {Plane.XZ, Plane.YZ} and node not in iset:
-                # Ensure that the correcting node is not an input. This is not verified in the original algorithm (see reference in docstring).
+            if meas_planes[node] in {Plane.XZ, Plane.YZ}:
+                # If the correcting node is an input there ins't any flow. This is not verified in the original algorithm (see reference in docstring).
+                if node in iset:
+                    return None
                 k_prime_set |= {node}
             corrected_nodes |= {node}
             gf[node] = k_prime_set
@@ -169,7 +171,7 @@ def _gflowaux(
 
 
 def _get_subadj_matrices(
-    graph: nx.Graph, non_output_mapping: NodeIndex, corr_candidates_mapping: NodeIndex
+    graph: nx.Graph[int], non_output_mapping: NodeIndex, corr_candidates_mapping: NodeIndex
 ) -> tuple[MatGF2, MatGF2]:
     r"""Return two different submatrices of the adjacency matrix of the input open graph.
 
