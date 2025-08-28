@@ -443,8 +443,6 @@ def back_substitute(mat: MatGF2, b: MatGF2) -> MatGF2:
     Notes
     -----
     This function is not integrated in `:class: graphix.linalg.MatGF2` because it does not perform any checks on the form of `mat` to ensure that it is in REF or that the system is solvable.
-
-    See related :func:`MatGF2.solve_ls`.
     """
     m, n = mat.data.shape
     x = MatGF2(np.zeros(n, dtype=np.int_))
