@@ -179,3 +179,49 @@ class TestUtilities:
 
         with pytest.raises(ValueError):
             randobj.rand_pauli_channel_kraus(dim=2**nqb + 1, rank=rk, rng=fx_rng)
+
+
+class TestRandomOpenGraph:
+    """A class to group all the tests related to graphix.random_objects.rand_og_flow."""
+
+    def test_generate_rnd_gf2_vec(self, fx_rng: Generator) -> None:
+        """Test that returned vector fulfil constraints and are uniformly disrtibuted."""
+        n_shots = 1000  # number of shots
+        g = np.array([1, 0, 0], dtype=np.uint8)
+        c = 1
+
+        x_ref = {
+            0: np.array([1, 1, 0], dtype=np.uint8),
+            1: np.array([1, 1, 1], dtype=np.uint8),
+            2: np.array([1, 0, 0], dtype=np.uint8),
+            3: np.array([1, 0, 1], dtype=np.uint8),
+        }
+        counts = {0: 0, 1: 0, 2: 0, 3: 0}
+
+        for _ in range(n_shots):
+            x = randobj._generate_rnd_gf2_vec(g, c, fx_rng)
+            for i in range(4):
+                if np.all(x == x_ref[i]):
+                    counts[i] += 1
+                    break
+            else:
+                pytest.fail(f"Generated impossible random vector x = {x}")
+
+        for count in counts.values():
+            assert count / n_shots == pytest.approx(0.25, abs=1 / np.sqrt(n_shots))
+
+    def test_rand_og_gflow(self, fx_rng: Generator) -> None:
+        meas_planes = {0: Plane.XY, 1: Plane.XZ, 3: Plane.YZ}
+        n = 5
+        n_o = 2
+        og = randobj.rand_og_gflow(n, n_o, fx_rng, meas_planes)
+        assert og.inside.number_of_nodes() == n
+        assert og.outputs == [4, 5]
+        assert {node: meas.plane for node, meas in og.measurements.items()} == meas_planes
+        assert find_pflow(og) is not None
+
+        n = 10
+        n_o = 4
+        for _ in range(5):
+            og = randobj.rand_og_gflow(n, n_o, fx_rng)
+            assert find_pflow(og) is not None

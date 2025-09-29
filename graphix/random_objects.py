@@ -423,3 +423,129 @@ def rand_circuit(
             ind = rng.integers(len(gate_choice))
             gate_choice[ind](j)
     return circuit
+
+
+def rand_og_gflow(n: int, n_o: int, rng: Generator, meas_planes: Mapping[int, Plane] | None = None) -> OpenGraph:
+    """Return random open graph with gflow.
+
+    Parameters
+    ----------
+    n : int
+        Number of nodes in open graph.
+    n_o : int
+        Number of output nodes in open graph
+    rng : numpy.random.Generator
+        Random number generator.
+    meas_planes : Mapping[int, Plane] | None
+        Measurement planes (`value`) associated with each non-output node (`key`). If `None`, they are chosen at random. Optional (defaults to `None`).
+
+    Returns
+    -------
+    graphix.opengraph.OpenGraph
+        Random open graph with gflow.
+
+    Notes
+    -----
+    This function implements the PGA algorithm designed by R. Pal.
+    """
+    n_no = n - n_o  # Number of non-output nodes.
+    if meas_planes is not None and len(meas_planes) != n_no:
+        raise ValueError(f"Number of items in `meas_planes` should be equal to number of non-outputs, n - no = {n_no}")
+    if meas_planes is None:
+        plane_choice = [Plane.XY, Plane.XZ, Plane.YZ]
+        meas_planes = {i: plane_choice[rng.integers(3)] for i in range(n_no)}
+
+    shift = max(meas_planes) + 1
+    idx_node_mapping = {i: i + shift for i in range(n_o)}  # Index to node mapping in the adjacency matrix.
+
+    c_matrix = np.zeros((n_no + 1, n), dtype=np.uint8).view(MatGF2)
+    adj_matrix = np.zeros((n, n), dtype=np.uint8).view(MatGF2)
+
+    for k, (node, plane) in enumerate(meas_planes.items()):
+        idx_node_mapping[k + n_o] = node
+        c_matrix, adj_matrix = _add_vertex(c_matrix, adj_matrix, k, plane, n_o, rng)
+    graph = nx.from_numpy_array(adj_matrix)
+    graph = nx.relabel_nodes(graph, idx_node_mapping)
+    measurements = {i: Measurement(Placeholder("Angle"), plane) for i, plane in meas_planes.items()}
+    outputs = [idx_node_mapping[i] for i in range(n_o)]
+    inputs = [idx_node_mapping[i] for i, col in enumerate(c_matrix.T) if not np.any(col)]
+
+    return OpenGraph(inside=graph, measurements=measurements, inputs=inputs, outputs=outputs)
+
+
+def _add_vertex(
+    c_matrix: MatGF2, adj_matrix: MatGF2, k: int, plane: Plane, n_o: int, rng: Generator
+) -> tuple[MatGF2, MatGF2]:
+    """Add vertex to open graph.
+
+    Parameters
+    ----------
+    c_matrix : graphix._linalg.MatGF2
+        Correction matrix.
+    adj_matrix: graphix._linalg.MatGF2
+        Graph adjacency matrix.
+    k : int
+        Index of the updated row (and column) of the adjacency matrix.
+    plane : graphix.fundamentals.Plane
+        Measurement plane of the node under evaluation.
+    n_o: int
+        Number of output nodes in open graph.
+    rng : numpy.random.Generator
+        Random number generator.
+
+    Returns
+    -------
+    c_matrix : MatGF2
+        Updated correction matrix.
+    adj_matrix: MatGF2
+        Updated graph adjacency matrix.
+    """
+    k_shift = k + n_o
+    kernel = c_matrix[: k + 1, :k_shift].view(MatGF2).null_space()
+    g_vect = kernel[rng.integers(kernel.shape[0])]  # pick LC # `g_vect` has shape (k_shift + 1, )
+    c_vect = np.empty(k_shift + 1, dtype=np.uint8)
+
+    if plane == Plane.XY:
+        c_dot, c_k = 1, 0
+    elif plane == Plane.YZ:
+        c_dot, c_k = 0, 1
+    elif plane == Plane.XZ:
+        c_dot, c_k = 1, 1
+
+    c_vect[:k_shift] = _generate_rnd_gf2_vec(g_vect, c_dot, rng)
+    c_vect[-1] = c_k
+
+    adj_matrix[k_shift, :k_shift] = g_vect
+    adj_matrix[:k_shift, k_shift] = g_vect
+    c_matrix[k + 1, : k_shift + 1] = c_vect
+
+    return c_matrix.view(MatGF2), adj_matrix.view(MatGF2)
+
+
+def _generate_rnd_gf2_vec(g: npt.NDArray[np.uint8], c: int, rng: Generator) -> npt.NDArray[np.uint8]:
+    r"""Generate a random vector :math:`x` over :math:`\mathbb F_2` such that :math:`x \dot g = c`.
+
+    Parameters
+    ----------
+    g : npt.NDArray[np.uint8]
+    c : int (0 or 1)
+    rng : Generator
+
+    Returns
+    -------
+    npt.NDArray[np.uint8]
+        A random vector with `len(g)` elements and the appropriate constraints.
+    """
+    result = rng.integers(0, 2, size=len(g), dtype=np.uint8)
+
+    idx_nonzero = np.flatnonzero(g)
+
+    if idx_nonzero.size == 0:
+        if c != 0:
+            raise ValueError(r"It does not exist an `x` such that  $x \cdot g = c$.")
+        return result
+
+    if np.bitwise_xor.reduce(result[idx_nonzero]) != c:
+        result[rng.choice(idx_nonzero)] ^= 1
+
+    return result
