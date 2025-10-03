@@ -8,6 +8,8 @@ import pytest
 import graphix.random_objects as randobj
 from graphix import linalg_validations as lv
 from graphix.channels import KrausChannel
+from graphix.find_pflow import find_pflow
+from graphix.fundamentals import Plane
 from graphix.ops import Ops
 from graphix.sim.density_matrix import DensityMatrix
 

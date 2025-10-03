@@ -5,18 +5,24 @@ from __future__ import annotations
 import functools
 from typing import TYPE_CHECKING
 
+import networkx as nx
 import numpy as np
 import numpy.typing as npt
 import scipy.linalg
 from scipy.stats import unitary_group
 
+from graphix._linalg import MatGF2
 from graphix.channels import KrausChannel, KrausData
+from graphix.fundamentals import Plane
+from graphix.measurements import Measurement
+from graphix.opengraph import OpenGraph
 from graphix.ops import Ops
+from graphix.parameter import Placeholder
 from graphix.rng import ensure_rng
 from graphix.transpiler import Circuit
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Iterable, Iterator, Mapping
 
     from numpy.random import Generator
 
@@ -502,7 +508,12 @@ def _add_vertex(
     """
     k_shift = k + n_o
     kernel = c_matrix[: k + 1, :k_shift].view(MatGF2).null_space()
-    g_vect = kernel[rng.integers(kernel.shape[0])]  # pick LC # `g_vect` has shape (k_shift + 1, )
+    # We pick a random linear combination of kernel-basis vector (with random coefficients)
+    mask = rng.choice([True, False], size=kernel.shape[0])
+    # Ensure that we have at least one non-zero coefficient.
+    if not np.any(mask):
+        mask[rng.integers(len(mask))] = True
+    g_vect = np.bitwise_xor.reduce(kernel[mask], axis=0)  # `g_vect` has shape (k_shift + 1, )
     c_vect = np.empty(k_shift + 1, dtype=np.uint8)
 
     if plane == Plane.XY:
