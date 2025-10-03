@@ -452,7 +452,11 @@ def rand_og_gflow(n: int, n_o: int, rng: Generator, meas_planes: Mapping[int, Pl
 
     Notes
     -----
-    This function implements the PGA algorithm designed by R. Pal.
+    This function implements the PGA algorithm presented in [1].
+
+    References
+    ----------
+    [1] "Generation of random open graph with gflow" Rajarsi Pal, Harold Ollivier, Graphix Workshop, Inria, 2024.
     """
     n_no = n - n_o  # Number of non-output nodes.
     if meas_planes is not None and len(meas_planes) != n_no:
@@ -513,8 +517,8 @@ def _add_vertex(
     # Ensure that we have at least one non-zero coefficient.
     if not np.any(mask):
         mask[rng.integers(len(mask))] = True
-    g_vect = np.bitwise_xor.reduce(kernel[mask], axis=0)  # `g_vect` has shape (k_shift + 1, )
-    c_vect = np.empty(k_shift + 1, dtype=np.uint8)
+    g_vect = np.bitwise_xor.reduce(kernel[mask], axis=0)  # `g_vect` has shape (k_shift, )
+    c_vect = np.empty(k_shift + 1, dtype=np.uint8)  # `c_vect` has shape (k_shift + 1 , )
 
     if plane == Plane.XY:
         c_dot, c_k = 1, 0
@@ -556,6 +560,7 @@ def _generate_rnd_gf2_vec(g: npt.NDArray[np.uint8], c: int, rng: Generator) -> n
             raise ValueError(r"It does not exist an `x` such that  $x \cdot g = c$.")
         return result
 
+    # If the random vector `result` does not fulfil the constraint, it suffices to flip bit `k`, such that `g[k] != 0`.
     if np.bitwise_xor.reduce(result[idx_nonzero]) != c:
         result[rng.choice(idx_nonzero)] ^= 1
 

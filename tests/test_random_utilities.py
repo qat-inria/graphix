@@ -187,7 +187,7 @@ class TestRandomOpenGraph:
     """A class to group all the tests related to graphix.random_objects.rand_og_flow."""
 
     def test_generate_rnd_gf2_vec(self, fx_rng: Generator) -> None:
-        """Test that returned vector fulfil constraints and are uniformly disrtibuted."""
+        """Test that returned vector fulfils constraints and are uniformly disrtibuted."""
         n_shots = 1000  # number of shots
         g = np.array([1, 0, 0], dtype=np.uint8)
         c = 1
@@ -224,6 +224,6 @@ class TestRandomOpenGraph:
 
         n = 10
         n_o = 4
-        for _ in range(5):
+        for _ in range(10):
             og = randobj.rand_og_gflow(n, n_o, fx_rng)
             assert find_pflow(og) is not None
