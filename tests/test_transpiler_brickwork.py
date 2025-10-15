@@ -5,6 +5,7 @@ import pytest
 from numpy.random import Generator
 
 from graphix.brickwork import _nqubits_from_layers, transpile_to_layers
+from graphix.parameter import Placeholder
 from graphix.transpiler import Circuit
 
 
@@ -143,3 +144,18 @@ class TestBrickworkTranspilerUnitGates:
                 circuit.rx(j, np.pi / 4)
             layers = transpile_to_layers(circuit)
             assert _nqubits_from_layers(layers) == i
+
+    def test_parametrized_circuit(self, fx_rng: Generator) -> None:
+        circuit = Circuit(4)
+        circuit.cnot(0, 1)
+        alpha = Placeholder("alpha")
+        for j in [0, 1, 2, 3, 4]:
+            circuit.rx(0, j * alpha)
+            circuit.i(0)
+        pattern = circuit.transpile(method="brickwork").pattern
+        assert pattern.is_parameterized()
+        pattern0 = pattern.subs(alpha, np.pi / 4)
+        circuit0 = circuit.subs(alpha, np.pi / 4)
+        state = circuit0.simulate_statevector().statevec
+        state_mbqc = pattern0.simulate_pattern(rng=fx_rng)
+        assert np.abs(np.dot(state_mbqc.flatten().conjugate(), state.flatten())) == pytest.approx(1)

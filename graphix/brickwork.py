@@ -6,21 +6,24 @@ accepts desired gate operations and transpile into brickwork MBQC measurement pa
 from __future__ import annotations
 
 import enum
-import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
+import numpy as np
 from typing_extensions import assert_never
 
 from graphix import Pattern, command
+from graphix.command import E, M, N, X, Z
 from graphix.instruction import InstructionKind
+from graphix.parameter import ExpressionOrFloat, check_expression_or_float
 
 if TYPE_CHECKING:
-
     from graphix import instruction
     from graphix.transpiler import Circuit
+
+Angle = ExpressionOrFloat
 
 
 class Brick(ABC):
@@ -34,7 +37,7 @@ class Brick(ABC):
     """
 
     @abstractmethod
-    def measures(self) -> list[list[float]]: ...
+    def measures(self) -> list[list[Angle]]: ...
     """Returns the measurement angles for the brick. The sublists correspond to the top and bottom qubits in the brick."""
     # @abstractmethod
     # def to_circuit(self, circuit: Circuit, nqubit_top: int) -> None: ...
@@ -58,11 +61,11 @@ class CNOT(Brick):
 
     target_above: bool
 
-    def measures(self) -> list[list[float]]:
+    def measures(self) -> list[list[Angle]]:
         """Return the measurement angles for the CNOT gate."""
         if self.target_above:
-            return [[0, math.pi / 2, 0, -math.pi / 2], [0, 0, math.pi / 2, 0]]
-        return [[0, 0, math.pi / 2, 0], [0, math.pi / 2, 0, -math.pi / 2]]
+            return [[0, np.pi / 2, 0, -np.pi / 2], [0, 0, np.pi / 2, 0]]
+        return [[0, 0, np.pi / 2, 0], [0, np.pi / 2, 0, -np.pi / 2]]
 
     # def to_circuit(self, circuit: Circuit, nqubit_top: int) -> None:
     #     if self.target_above:
@@ -81,8 +84,8 @@ class XZ(Enum):
     Z = enum.auto()
 
 
-def value_or_zero(v: float | None) -> float:
-    """Return the value if it is not None, otherwise return 0."""
+def value_or_zero(v: Angle | None) -> Angle:
+    """Return the Angle object if it is not None, otherwise return 0."""
     if v is None:
         return 0
     return v
@@ -114,11 +117,11 @@ class SingleQubit:
         Attempts to add a rotation to the gate. Returns True if successful, False otherwise.
     """
 
-    rz0: float | None = None
-    rx: float | None = None
-    rz1: float | None = None
+    rz0: Angle | None = None
+    rx: Angle | None = None
+    rz1: Angle | None = None
 
-    def measures(self) -> list[float]:
+    def measures(self) -> list[Angle]:
         """Return the measurement angles for the single-qubit gate."""
         return [
             -value_or_zero(self.rz0),
@@ -139,7 +142,7 @@ class SingleQubit:
         """Check if the gate is an identity operation (no rotations)."""
         return self.rz0 is None and self.rx is None and self.rz1 is None
 
-    def add(self, axis: XZ, angle: float) -> bool:
+    def add(self, axis: XZ, angle: Angle) -> bool:
         """Add a rotation to the brick. Returns True if successful, False otherwise. Includes typing assertion to ensure all cases are covered."""
         if axis == XZ.X:
             if self.rx is None and self.rz1 is None:
@@ -187,7 +190,7 @@ class SingleQubitPair(Brick):
             return self.bottom
         return self.top
 
-    def measures(self) -> list[list[float]]:
+    def measures(self) -> list[list[Angle]]:
         """Return the measurement angles for both single-qubits in the brick."""
         return [self.top.measures(), self.bottom.measures()]
 
@@ -328,7 +331,7 @@ def __insert_rotation(
         brick, position = previous_layer.get(instr.target)
         if isinstance(brick, SingleQubitPair):
             gate = brick.get(position)
-            assert isinstance(instr.angle, float)
+            assert isinstance(instr.angle, Angle)
             if gate.add(axis, instr.angle):
                 return
         else:
@@ -342,8 +345,7 @@ def __insert_rotation(
     assert isinstance(brick, SingleQubitPair)
     gate = brick.get(position)
     assert gate.is_identity()
-    assert isinstance(instr.angle, float)
-    added = gate.add(axis, instr.angle)
+    added = gate.add(axis, check_expression_or_float(instr.angle))
     assert added
     depth[instr.target] = target_depth + 1
 
@@ -425,7 +427,7 @@ class NodeGenerator:
         """Return the next unused node index and a command to prepare it in the |+> state."""
         index = self.from_index
         self.from_index += 1
-        return index, command.N(node=index)
+        return index, N(node=index)
 
     # def fresh(self, pattern: Pattern) -> int:
     #     """
@@ -449,7 +451,7 @@ class NodeGenerator:
 
 
 def j_commands(
-    node_generator: NodeGenerator, node: int, angle: float) -> tuple[int, list[command.Command]]:
+    node_generator: NodeGenerator, node: int, angle: Angle) -> tuple[int, list[command.Command]]:
     """Generate the commands for a J(theta) operation on a given node.
 
     Parameters
@@ -469,9 +471,9 @@ def j_commands(
     next_node, command_n = node_generator.fresh_command()
     commands: list[command.Command] = [
         command_n,
-        command.E(nodes=(node, next_node)),
-        command.M(node=node, angle=angle / math.pi),
-        command.X(node=next_node, domain={node}),
+        E(nodes=(node, next_node)),
+        M(node=node, angle=angle / np.pi),
+        X(node=next_node, domain={node}),
     ]
     return next_node, commands
 
@@ -509,7 +511,7 @@ def _nqubits_from_layers(layers: list[Layer]) -> int:
     return even_brick_count * 2 + int(even_brick_count == odd_brick_count)
 
 
-def layers_to_measurement_table(layers: list[Layer]) -> list[list[float]]:
+def layers_to_measurement_table(layers: list[Layer]) -> list[list[Angle]]:
     """Convert layers of bricks into a measurement table.
 
     Goes left to right in measurement order, .
@@ -521,15 +523,15 @@ def layers_to_measurement_table(layers: list[Layer]) -> list[list[float]]:
 
     Returns
     -------
-    list[list[float]]
+    list[list[Angle]]
 
     """
     nqubits = _nqubits_from_layers(layers)
-    table: list[list[float]] = []
+    table: list[list[Angle]] = []
     for layer_index, layer in enumerate(layers):
         all_brick_measures = [brick.measures() for brick in layer.bricks]  # Should be a list of two lists of four floats, one for each qubit (top, bottom) in the brick
         for column_index in range(4):
-            column: list[float] = []
+            column: list[Angle] = []
             if layer.odd:
                 column.append(0)
             column.extend(
@@ -543,7 +545,7 @@ def layers_to_measurement_table(layers: list[Layer]) -> list[list[float]]:
     return table
 
 
-def measurement_table_to_pattern(width: int, table: list[list[float]], order: ConstructionOrder) -> Pattern:
+def measurement_table_to_pattern(width: int, table: list[list[Angle]], order: ConstructionOrder) -> Pattern:
     """
     Convert a measurement table into a MBQC measurement pattern.
 
@@ -554,7 +556,7 @@ def measurement_table_to_pattern(width: int, table: list[list[float]], order: Co
     ----------
     width : int
         number of qubits in the circuit
-    table : list[list[float]]
+    table : list[list[Angle]]
         the measurement table, where each sublist represents a column of measurement angles
     order : ConstructionOrder
         the construction order to use for building the pattern
@@ -577,7 +579,7 @@ def measurement_table_to_pattern(width: int, table: list[list[float]], order: Co
                 if order == ConstructionOrder.Canonical:
                     if qubit % 2 == brick_layer % 2 and qubit != width - 1:
                         pattern.add(
-                            command.E(nodes=(nodes[qubit], nodes[qubit + 1]))
+                            E(nodes=(nodes[qubit], nodes[qubit + 1]))
                         )
                     pattern.extend(commands)
                 elif order == ConstructionOrder.DeviantRight:
@@ -590,7 +592,7 @@ def measurement_table_to_pattern(width: int, table: list[list[float]], order: Co
                         pattern.extend(commands[:2])
                         previous_qubit, previous_commands = postponed
                         postponed = None
-                        pattern.add(command.E(nodes=(previous_qubit, nodes[qubit])))
+                        pattern.add(E(nodes=(previous_qubit, nodes[qubit])))
                         pattern.extend(previous_commands)
                         pattern.extend(commands[2:])
             elif time % 4 in {1, 3} and order == ConstructionOrder.Deviant:
@@ -604,13 +606,13 @@ def measurement_table_to_pattern(width: int, table: list[list[float]], order: Co
                     pattern.add(commands[0])
                     previous_qubit, previous_commands = postponed
                     postponed = None
-                    pattern.add(command.E(nodes=(nodes[qubit - 1], next_node)))
+                    pattern.add(E(nodes=(nodes[qubit - 1], next_node)))
                     pattern.extend(previous_commands)
                     pattern.extend(commands[1:])
                     pattern.extend(
                         [
-                            command.Z(node=nodes[qubit - 1], domain={nodes[qubit]}),
-                            command.Z(node=next_node, domain={previous_qubit}),
+                            Z(node=nodes[qubit - 1], domain={nodes[qubit]}),
+                            Z(node=next_node, domain={previous_qubit}),
                         ]
                     )
             else:
@@ -619,7 +621,7 @@ def measurement_table_to_pattern(width: int, table: list[list[float]], order: Co
     if order != ConstructionOrder.Deviant:
         last_brick_layer = (len(table) - 1) // 4
         for qubit in range(last_brick_layer % 2, width - 1, 2):
-            pattern.add(command.E(nodes=(nodes[qubit], nodes[qubit + 1])))
+            pattern.add(E(nodes=(nodes[qubit], nodes[qubit + 1])))
     return pattern
 
 
