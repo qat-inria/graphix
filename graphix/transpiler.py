@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Callable, SupportsFloat
 import numpy as np
 from typing_extensions import assert_never
 
-from graphix import command, instruction, parameter
+from graphix import brickwork, command, instruction, parameter
 from graphix.branch_selector import BranchSelector, RandomBranchSelector
 from graphix.command import E, M, N, X, Z
 from graphix.fundamentals import Plane
@@ -339,8 +339,57 @@ class Circuit:
         self.instruction.append(instruction.M(target=qubit, plane=plane, angle=angle))
         self.active_qubits.remove(qubit)
 
-    def transpile(self) -> TranspileResult:
+    def transpile(self, method: str = "default", order: str = "canonical") -> TranspileResult:
         """Transpile the circuit to a pattern.
+
+        Parameters
+        ----------
+        method : str
+            transpile method. Available methods are 'default' and 'brickwork'.
+            Default is 'default'.
+
+        Returns
+        -------
+        result : :class:`TranspileResult` object
+        """
+        if method != "brickwork" and order != "canonical":
+            raise ValueError("The 'order' parameter is only used with method='brickwork'.")
+        if method == "default":
+            result = self.transpile_default()
+        elif method == "brickwork":
+            result = self.transpile_brickwork(order)
+        else:
+            raise ValueError(f"Unknown transpile method: {method}. Available methods are 'default' and 'brickwork'.")
+        return result
+
+    def transpile_brickwork(self, order: str = "canonical") -> TranspileResult:
+        """Transpile the circuit to a brickwork pattern defined in the Universal Blind Quantum Computation.
+
+        Parameters
+        ----------
+        order : ConstructionOrder
+            Order in which to construct the brickwork pattern. Default is Canonical.
+
+        Returns
+        -------
+        result : :class:`TranspileResult` object
+        """
+        n_node = self.width
+        order_as_object = brickwork.ConstructionOrder.Canonical
+        if order == "canonical":
+            pass
+        elif order == "deviant":
+            order_as_object = brickwork.ConstructionOrder.Deviant
+        elif order == "deviant-right":
+            order_as_object = brickwork.ConstructionOrder.DeviantRight
+        else:
+            raise ValueError(f"Unknown construction order: {order}. Available orders are 'canonical', 'deviant' and 'deviant-right'.")
+        pattern = brickwork.layers_to_pattern(n_node, brickwork.transpile_to_layers(self), order_as_object)
+        classical_outputs = []
+        return TranspileResult(pattern, tuple(classical_outputs))
+
+    def transpile_default(self) -> TranspileResult:
+        """Transpile the circuit to a pattern using the logic from the Measurement Calculus.
 
         Returns
         -------
