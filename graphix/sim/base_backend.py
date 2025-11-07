@@ -332,37 +332,235 @@ class NoiseNotSupportedError(Exception):
         return "This backend does not support noise."
 
 
-class BackendState(ABC):
+def _op_mat_from_result(
+    vec: tuple[ExpressionOrFloat, ExpressionOrFloat, ExpressionOrFloat], result: Outcome, symbolic: bool = False
+) -> Matrix:
+    r"""Return the operator :math:`\tfrac{1}{2}(I + (-1)^r \vec{v}\cdot\vec{\sigma})`.
+
+    Parameters
+    ----------
+    vec : tuple[float, float, float]
+        Cartesian components of a unit vector.
+    result : bool
+        Measurement result ``r``.
+    symbolic : bool, optional
+        If ``True`` return an array of ``object`` dtype.
+
+    Returns
+    -------
+    numpy.ndarray
+        2x2 operator acting on the measured qubit.
     """
-    Abstract base class for representing the quantum state of a backend.
+    sign = (-1) ** result
+    if symbolic:
+        op_mat_symbolic: npt.NDArray[np.object_] = np.eye(2, dtype=np.object_) / 2
+        for i, t in enumerate(vec):
+            op_mat_symbolic += sign * t * Clifford(i + 1).matrix / 2
+        return op_mat_symbolic
+    op_mat_complex: npt.NDArray[np.complex128] = np.eye(2, dtype=np.complex128) / 2
+    x, y, z = vec
+    # mypy requires each of x, y, and z to be tested explicitly for it to infer
+    # that they are instances of `SupportsFloat`.
+    # In particular, using a loop or comprehension like
+    # `not all(isinstance(v, SupportsFloat) for v in (x, y, z))` is not supported.
+    if not isinstance(x, SupportsFloat) or not isinstance(y, SupportsFloat) or not isinstance(z, SupportsFloat):
+        raise TypeError("Vector of float expected with symbolic = False")
+    float_vec = [x, y, z]
+    for i, t in enumerate(float_vec):
+        op_mat_complex += sign * t * Clifford(i + 1).matrix / 2
+    return op_mat_complex
 
-    `BackendState` defines the interface for quantum state representations used by
-    various backend implementations. It provides a common foundation for different
-    simulation strategies, such as dense linear algebra or tensor network contraction.
 
-    Concrete subclasses must implement the storage and manipulation logic appropriate
-    for a specific backend and representation strategy.
+def perform_measure(
+    qubit_node: int,
+    qubit_loc: int,
+    plane: Plane,
+    angle: ExpressionOrFloat,
+    state: DenseState,
+    branch_selector: BranchSelector,
+    rng: Generator | None = None,
+    symbolic: bool = False,
+) -> Outcome:
+    """Perform measurement of a qubit."""
+    vec = plane.polar(angle)
+    # op_mat0 may contain the matrix operator associated with the outcome 0,
+    # but the value is computed lazily, i.e., only if needed.
+    op_mat0 = None
+
+    def get_op_mat0() -> Matrix:
+        nonlocal op_mat0
+        if op_mat0 is None:
+            op_mat0 = _op_mat_from_result(vec, 0, symbolic=symbolic)
+        return op_mat0
+
+    def f_expectation0() -> float:
+        exp_val = state.expectation_single(get_op_mat0(), qubit_loc)
+        assert math.isclose(exp_val.imag, 0, abs_tol=1e-10)
+        return exp_val.real
+
+    result = branch_selector.measure(qubit_node, f_expectation0, rng)
+    op_mat = _op_mat_from_result(vec, 1, symbolic=symbolic) if result else get_op_mat0()
+    state.evolve_single(op_mat, qubit_loc)
+    return result
+
+
+@dataclass(frozen=True)
+class Backend(ABC):
+    """
+    Abstract base class for all quantum backends.
+
+    A backend is responsible for managing a quantum system, including the set of active
+    qubits (nodes), their initialization, evolution, and measurement. It defines the
+    interface through which high-level quantum programs interact with the underlying
+    simulation or hardware model.
+
+    Concrete subclasses implement specific state representations and simulation strategies,
+    such as dense state vectors, density matrices, or tensor networks.
+
+    Responsibilities of a backend typically include:
+    - Managing a dynamic set of qubits (nodes) and their state
+    - Applying quantum gates or operations
+    - Performing measurements and returning classical outcomes
+    - Tracking and exposing the underlying quantum state
+
+    Examples of concrete subclasses include:
+    - `StatevecBackend` (pure states via state vectors)
+    - `DensityMatrixBackend` (mixed states via density matrices)
+    - `TensorNetworkBackend` (compressed states via tensor networks)
 
     Notes
     -----
-    This class is abstract and cannot be instantiated directly.
+    This class is abstract and should not be instantiated directly.
 
-    Examples of concrete subclasses include:
-    - :class:`Statevec` (for pure states represented as state vectors)
-    - :class:`DensityMatrix` (for mixed states represented as density matrices)
-    - :class:`MBQCTensorNet` (for compressed representations using tensor networks)
+    The class hierarchy of states mirrors the class hierarchy of backends:
+    - `DenseStateBackend` and `TensorNetworkBackend` are subclasses of `Backend`.
+    - `StatevecBackend` and `DensityMatrixBackend` are subclasses of `DenseStateBackend`,
+      and `Statevec` and `DensityMatrix` are subclasses of `DenseState`.
+
+    The type variable`_DenseStateT_co` is declared as covariant.
+    That is, ``DenseStateBackend[T1]`` is a subtype of ``DenseStateBackend[T2]`` if ``T1`` is a subtype of ``T2``.
+    This covariance is sound because backends are frozen dataclasses; thus, the type of
+    ``state`` cannot be changed after instantiation.
+
+    The interface expected from a backend includes the following methods:
+    - `add_nodes`: which executes `N` commands.
+    - `apply_channel`: used for noisy simulations.
+      The class `Backend` provides a default implementation that
+      raises `NoiseNotSupportedError`, indicating that the backend
+      does not support noise. Backends that support noise (e.g.,
+      `DensityMatrixBackend`) override this method to implement the
+      effect of noise.
+    - `apply_clifford`: executes `C` commands.
+    - `correct_byproduct`: executes `X` and `Z` commands.
+    - `entangle_nodes`: executes `E` commands.
+    - `finalize`: called at the end of pattern simulation to convey
+      the order of output nodes.
+    - `measure`: executes `M` commands.
 
     See Also
     --------
-    :class:`DenseState`, :class:`MBQCTensorNet`, :class:`Statevec`, :class:`DensityMatrix`
+    :`class:`DenseStateBackend`, :class:`StatevecBackend`, :class:`DensityMatrixBackend`, :class:`TensorNetworkBackend`
     """
 
     @abstractmethod
-    def flatten(self) -> Matrix:
-        """Return flattened state."""
+    def add_nodes(self, nodes: Sequence[int], data: Data = BasicStates.PLUS) -> None:
+        r"""
+        Add new nodes (qubits) to the backend and initialize them in a specified state.
+
+        Parameters
+        ----------
+        nodes : Sequence[int]
+            A list of node indices to add to the backend. These indices can be any
+            integer values but must be fresh: each index must be distinct from all
+            previously added nodes.
+
+        data : Data, optional
+            The state in which to initialize the newly added nodes. The supported forms
+            of state specification depend on the backend implementation.
+
+            All backends must support the basic predefined states in ``BasicStates``.
+
+            - If a single basic state is provided, all new nodes are initialized in that state.
+            - If a list of basic states is provided, it must match the length of ``nodes``, and
+              each node is initialized with its corresponding state.
+
+            Some backends support other forms of state specification.
+
+            - ``StatevecBackend`` supports arbitrary state vectors:
+                - A single-qubit state vector will be broadcast to all nodes.
+                - A multi-qubit state vector of dimension :math:`2^n`, where :math:`n = \mathrm{len}(nodes)`,
+                  initializes the new nodes jointly.
+
+            - ``DensityMatrixBackend`` supports both state vectors and density matrices:
+                - State vectors are handled as in ``StatevecBackend``, and converted to
+                  density matrices.
+                - A density matrix must have shape :math:`2^n \times 2^n`, where :math:`n = \mathrm{len}(nodes)`,
+                  and is used to jointly initialize the new nodes.
+
+        Notes
+        -----
+        Previously existing nodes remain unchanged.
+        """
+
+    def apply_noise(self, nodes: Sequence[int], noise: Noise) -> None:  # noqa: ARG002,PLR6301
+        """Apply noise.
+
+        The default implementation of this method raises
+        `NoiseNotSupportedError`, indicating that the backend does not
+        support noise. Backends that support noise (e.g.,
+        `DensityMatrixBackend`) override this method to implement
+        the effect of noise.
+
+        Parameters
+        ----------
+        nodes : sequence of ints.
+            Target qubits
+        noise : Noise
+            Noise to apply
+        """
+        raise NoiseNotSupportedError
+
+    @abstractmethod
+    def apply_clifford(self, node: int, clifford: Clifford) -> None:
+        """Apply single-qubit Clifford gate, specified by vop index specified in graphix.clifford.CLIFFORD."""
+
+    @abstractmethod
+    def correct_byproduct(self, cmd: command.X | command.Z, measure_method: MeasureMethod) -> None:
+        """Byproduct correction correct for the X or Z byproduct operators, by applying the X or Z gate."""
+
+    @abstractmethod
+    def entangle_nodes(self, edge: tuple[int, int]) -> None:
+        """Apply CZ gate to two connected nodes.
+
+        Parameters
+        ----------
+        edge : tuple (i, j)
+            a pair of node indices
+        """
+
+    @abstractmethod
+    def finalize(self, output_nodes: Iterable[int]) -> None:
+        """To be run at the end of pattern simulation to convey the order of output nodes."""
+
+    @abstractmethod
+    def measure(self, node: int, measurement: Measurement, rng: Generator | None = None) -> Outcome:
+        """Perform measurement of a node and trace out the qubit.
+
+        Parameters
+        ----------
+        node: int
+        measurement: Measurement
+        rng: Generator, optional
+            Random-number generator for measurements.
+            This generator is used only in case of random branch selection
+            (see :class:`RandomBranchSelector`).
+        """
 
 
-class DenseState(BackendState):
+_DenseStateT_co = TypeVar("_DenseStateT_co", bound="DenseState", covariant=True)
+
+
+class DenseState(ABC):
     """
     Abstract base class for quantum states with full dense representations.
 
@@ -380,8 +578,7 @@ class DenseState(BackendState):
     -----
     This class is abstract and cannot be instantiated directly.
 
-    Not all :class:`BackendState` subclasses are dense. For example, :class:`MBQCTensorNet` is a
-    `BackendState` that represents the quantum state using a tensor network, rather than
+    Not all Backend states are dense. For example, :class:`MBQCTensorNet` represents the quantum state using a tensor network, rather than
     a single dense array.
 
     See Also
@@ -495,257 +692,8 @@ class DenseState(BackendState):
         raise NoiseNotSupportedError
 
 
-def _op_mat_from_result(
-    vec: tuple[ExpressionOrFloat, ExpressionOrFloat, ExpressionOrFloat], result: Outcome, symbolic: bool = False
-) -> Matrix:
-    r"""Return the operator :math:`\tfrac{1}{2}(I + (-1)^r \vec{v}\cdot\vec{\sigma})`.
-
-    Parameters
-    ----------
-    vec : tuple[float, float, float]
-        Cartesian components of a unit vector.
-    result : bool
-        Measurement result ``r``.
-    symbolic : bool, optional
-        If ``True`` return an array of ``object`` dtype.
-
-    Returns
-    -------
-    numpy.ndarray
-        2x2 operator acting on the measured qubit.
-    """
-    sign = (-1) ** result
-    if symbolic:
-        op_mat_symbolic: npt.NDArray[np.object_] = np.eye(2, dtype=np.object_) / 2
-        for i, t in enumerate(vec):
-            op_mat_symbolic += sign * t * Clifford(i + 1).matrix / 2
-        return op_mat_symbolic
-    op_mat_complex: npt.NDArray[np.complex128] = np.eye(2, dtype=np.complex128) / 2
-    x, y, z = vec
-    # mypy requires each of x, y, and z to be tested explicitly for it to infer
-    # that they are instances of `SupportsFloat`.
-    # In particular, using a loop or comprehension like
-    # `not all(isinstance(v, SupportsFloat) for v in (x, y, z))` is not supported.
-    if not isinstance(x, SupportsFloat) or not isinstance(y, SupportsFloat) or not isinstance(z, SupportsFloat):
-        raise TypeError("Vector of float expected with symbolic = False")
-    float_vec = [x, y, z]
-    for i, t in enumerate(float_vec):
-        op_mat_complex += sign * t * Clifford(i + 1).matrix / 2
-    return op_mat_complex
-
-
-def perform_measure(
-    qubit_node: int,
-    qubit_loc: int,
-    plane: Plane,
-    angle: ExpressionOrFloat,
-    state: DenseState,
-    branch_selector: BranchSelector,
-    rng: Generator | None = None,
-    symbolic: bool = False,
-) -> Outcome:
-    """Perform measurement of a qubit."""
-    vec = plane.polar(angle)
-    # op_mat0 may contain the matrix operator associated with the outcome 0,
-    # but the value is computed lazily, i.e., only if needed.
-    op_mat0 = None
-
-    def get_op_mat0() -> Matrix:
-        nonlocal op_mat0
-        if op_mat0 is None:
-            op_mat0 = _op_mat_from_result(vec, 0, symbolic=symbolic)
-        return op_mat0
-
-    def f_expectation0() -> float:
-        exp_val = state.expectation_single(get_op_mat0(), qubit_loc)
-        assert math.isclose(exp_val.imag, 0, abs_tol=1e-10)
-        return exp_val.real
-
-    result = branch_selector.measure(qubit_node, f_expectation0, rng)
-    op_mat = _op_mat_from_result(vec, 1, symbolic=symbolic) if result else get_op_mat0()
-    state.evolve_single(op_mat, qubit_loc)
-    return result
-
-
-_StateT_co = TypeVar("_StateT_co", bound="BackendState", covariant=True)
-
-
 @dataclass(frozen=True)
-class Backend(Generic[_StateT_co]):
-    """
-    Abstract base class for all quantum backends.
-
-    A backend is responsible for managing a quantum system, including the set of active
-    qubits (nodes), their initialization, evolution, and measurement. It defines the
-    interface through which high-level quantum programs interact with the underlying
-    simulation or hardware model.
-
-    Concrete subclasses implement specific state representations and simulation strategies,
-    such as dense state vectors, density matrices, or tensor networks.
-
-    Responsibilities of a backend typically include:
-    - Managing a dynamic set of qubits (nodes) and their state
-    - Applying quantum gates or operations
-    - Performing measurements and returning classical outcomes
-    - Tracking and exposing the underlying quantum state
-
-    Examples of concrete subclasses include:
-    - `StatevecBackend` (pure states via state vectors)
-    - `DensityMatrixBackend` (mixed states via density matrices)
-    - `TensorNetworkBackend` (compressed states via tensor networks)
-
-    Parameters
-    ----------
-    state : BackendState
-        internal state of the backend: instance of :class:`Statevec`, :class:`DensityMatrix`, or :class:`MBQCTensorNet`.
-
-    Notes
-    -----
-    This class is abstract and should not be instantiated directly.
-
-    The class hierarchy of states mirrors the class hierarchy of backends:
-    - `DenseStateBackend` and `TensorNetworkBackend` are subclasses of `Backend`,
-      and `DenseState` and `MBQCTensorNet` are subclasses of `BackendState`.
-    - `StatevecBackend` and `DensityMatrixBackend` are subclasses of `DenseStateBackend`,
-      and `Statevec` and `DensityMatrix` are subclasses of `DenseState`.
-
-    The type variable `_StateT_co` specifies the type of the ``state`` field, so that subclasses
-    provide a precise type for this field:
-    - `StatevecBackend` is a subtype of ``Backend[Statevec]``.
-    - `DensityMatrixBackend` is a subtype of ``Backend[DensityMatrix]``.
-    - `TensorNetworkBackend` is a subtype of ``Backend[MBQCTensorNet]``.
-
-    The type variables `_StateT_co` and `_DenseStateT_co` are declared as covariant.
-    That is, ``Backend[T1]`` is a subtype of ``Backend[T2]`` if ``T1`` is a subtype of ``T2``.
-    This means that `StatevecBackend`, `DensityMatrixBackend`, and `TensorNetworkBackend` are
-    all subtypes of ``Backend[BackendState]``.
-    This covariance is sound because backends are frozen dataclasses; thus, the type of
-    ``state`` cannot be changed after instantiation.
-
-    The interface expected from a backend includes the following methods:
-    - `add_nodes`: which executes `N` commands.
-    - `apply_channel`: used for noisy simulations.
-      The class `Backend` provides a default implementation that
-      raises `NoiseNotSupportedError`, indicating that the backend
-      does not support noise. Backends that support noise (e.g.,
-      `DensityMatrixBackend`) override this method to implement the
-      effect of noise.
-    - `apply_clifford`: executes `C` commands.
-    - `correct_byproduct`: executes `X` and `Z` commands.
-    - `entangle_nodes`: executes `E` commands.
-    - `finalize`: called at the end of pattern simulation to convey
-      the order of output nodes.
-    - `measure`: executes `M` commands.
-
-    See Also
-    --------
-    :class:`BackendState`, :`class:`DenseStateBackend`, :class:`StatevecBackend`, :class:`DensityMatrixBackend`, :class:`TensorNetworkBackend`
-    """
-
-    # `init=False` is required because `state` cannot appear in a contravariant position
-    # (specifically, as a parameter of `__init__`) since `_StateT_co` is covariant.
-    state: _StateT_co = dataclasses.field(init=False)
-
-    @abstractmethod
-    def add_nodes(self, nodes: Sequence[int], data: Data = BasicStates.PLUS) -> None:
-        r"""
-        Add new nodes (qubits) to the backend and initialize them in a specified state.
-
-        Parameters
-        ----------
-        nodes : Sequence[int]
-            A list of node indices to add to the backend. These indices can be any
-            integer values but must be fresh: each index must be distinct from all
-            previously added nodes.
-
-        data : Data, optional
-            The state in which to initialize the newly added nodes. The supported forms
-            of state specification depend on the backend implementation.
-
-            All backends must support the basic predefined states in ``BasicStates``.
-
-            - If a single basic state is provided, all new nodes are initialized in that state.
-            - If a list of basic states is provided, it must match the length of ``nodes``, and
-              each node is initialized with its corresponding state.
-
-            Some backends support other forms of state specification.
-
-            - ``StatevecBackend`` supports arbitrary state vectors:
-                - A single-qubit state vector will be broadcast to all nodes.
-                - A multi-qubit state vector of dimension :math:`2^n`, where :math:`n = \mathrm{len}(nodes)`,
-                  initializes the new nodes jointly.
-
-            - ``DensityMatrixBackend`` supports both state vectors and density matrices:
-                - State vectors are handled as in ``StatevecBackend``, and converted to
-                  density matrices.
-                - A density matrix must have shape :math:`2^n \times 2^n`, where :math:`n = \mathrm{len}(nodes)`,
-                  and is used to jointly initialize the new nodes.
-
-        Notes
-        -----
-        Previously existing nodes remain unchanged.
-        """
-
-    def apply_noise(self, nodes: Sequence[int], noise: Noise) -> None:  # noqa: ARG002,PLR6301
-        """Apply noise.
-
-        The default implementation of this method raises
-        `NoiseNotSupportedError`, indicating that the backend does not
-        support noise. Backends that support noise (e.g.,
-        `DensityMatrixBackend`) override this method to implement
-        the effect of noise.
-
-        Parameters
-        ----------
-        nodes : sequence of ints.
-            Target qubits
-        noise : Noise
-            Noise to apply
-        """
-        raise NoiseNotSupportedError
-
-    @abstractmethod
-    def apply_clifford(self, node: int, clifford: Clifford) -> None:
-        """Apply single-qubit Clifford gate, specified by vop index specified in graphix.clifford.CLIFFORD."""
-
-    @abstractmethod
-    def correct_byproduct(self, cmd: command.X | command.Z, measure_method: MeasureMethod) -> None:
-        """Byproduct correction correct for the X or Z byproduct operators, by applying the X or Z gate."""
-
-    @abstractmethod
-    def entangle_nodes(self, edge: tuple[int, int]) -> None:
-        """Apply CZ gate to two connected nodes.
-
-        Parameters
-        ----------
-        edge : tuple (i, j)
-            a pair of node indices
-        """
-
-    @abstractmethod
-    def finalize(self, output_nodes: Iterable[int]) -> None:
-        """To be run at the end of pattern simulation to convey the order of output nodes."""
-
-    @abstractmethod
-    def measure(self, node: int, measurement: Measurement, rng: Generator | None = None) -> Outcome:
-        """Perform measurement of a node and trace out the qubit.
-
-        Parameters
-        ----------
-        node: int
-        measurement: Measurement
-        rng: Generator, optional
-            Random-number generator for measurements.
-            This generator is used only in case of random branch selection
-            (see :class:`RandomBranchSelector`).
-        """
-
-
-_DenseStateT_co = TypeVar("_DenseStateT_co", bound="DenseState", covariant=True)
-
-
-@dataclass(frozen=True)
-class DenseStateBackend(Backend[_DenseStateT_co], Generic[_DenseStateT_co]):
+class DenseStateBackend(Backend, Generic[_DenseStateT_co]):
     """
     Abstract base class for backends that represent quantum states explicitly in memory.
 
@@ -776,6 +724,7 @@ class DenseStateBackend(Backend[_DenseStateT_co], Generic[_DenseStateT_co]):
     :class:`StatevecBackend`, :class:`DensityMatrixBackend`, :class:`TensorNetworkBackend`
     """
 
+    state: _DenseStateT_co = dataclasses.field(init=False)
     node_index: NodeIndex = dataclasses.field(default_factory=NodeIndex)
     branch_selector: BranchSelector = dataclasses.field(default_factory=RandomBranchSelector)
     symbolic: bool = False

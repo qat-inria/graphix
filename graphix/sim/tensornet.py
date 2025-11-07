@@ -23,7 +23,7 @@ from graphix import command
 from graphix.branch_selector import BranchSelector, RandomBranchSelector
 from graphix.ops import Ops
 from graphix.parameter import Expression
-from graphix.sim.base_backend import Backend, BackendState
+from graphix.sim.base_backend import Backend
 from graphix.states import BasicStates, PlanarState
 
 if TYPE_CHECKING:
@@ -46,7 +46,7 @@ else:
     PrepareState: TypeAlias = Union[str, npt.NDArray[np.complex128]]
 
 
-class MBQCTensorNet(BackendState, TensorNetwork):
+class MBQCTensorNet(TensorNetwork):
     """Tensor Network Simulator interface for MBQC patterns, using quimb.tensor.core.TensorNetwork."""
 
     _dangling: dict[str, str]
@@ -358,7 +358,7 @@ class MBQCTensorNet(BackendState, TensorNetwork):
 
         # contraction
         tn_simplified = tn.full_simplify("ADCR")
-        coef = tn_simplified.contract(output_inds=[])
+        coef: complex = tn_simplified.contract(output_inds=[])  # pyright: ignore[reportAssignmentType]
         if normalize:
             norm = self.get_norm()
             return coef / norm
@@ -419,7 +419,7 @@ class MBQCTensorNet(BackendState, TensorNetwork):
         tn_cp2 = tn_cp1.conj()
         tn = TensorNetwork([tn_cp1, tn_cp2])
         tn_simplified = tn.full_simplify("ADCR")
-        contraction = tn_simplified.contract(output_inds=[], optimize=optimize)
+        contraction: complex = tn_simplified.contract(output_inds=[], optimize=optimize)  # pyright: ignore[reportAssignmentType]
         return float(abs(contraction) ** 0.5)
 
     def expectation_value(
@@ -472,8 +472,8 @@ class MBQCTensorNet(BackendState, TensorNetwork):
 
         # contraction
         tn_cp_left = tn_cp_left.full_simplify("ADCR")
-        exp_val = tn_cp_left.contract(output_inds=[], optimize=optimize)
-        norm = self.get_norm(optimize=optimize)
+        exp_val: float = tn_cp_left.contract(output_inds=[], optimize=optimize)  # pyright: ignore[reportAssignmentType]
+        norm: float = self.get_norm(optimize=optimize)
         return exp_val / norm**2
 
     def evolve(self, operator: npt.NDArray[np.complex128], qubit_indices: list[int], decompose: bool = True) -> None:
@@ -515,7 +515,7 @@ class MBQCTensorNet(BackendState, TensorNetwork):
                 bond_ind = bond_inds[i]
                 if bond_ind is not None:
                     left_inds.append(bond_ind)
-                unit_tensor, ts = ts.split(left_inds=left_inds, bond_ind=bond_inds[i + 1])
+                unit_tensor, ts = ts.split(left_inds=left_inds, bond_ind=bond_inds[i + 1])  # pyright: ignore[reportCallIssue]
                 tensors.append(unit_tensor)
             tensors.append(ts)
             ts = TensorNetwork(tensors)
@@ -569,7 +569,7 @@ def _get_decomposed_cz() -> list[npt.NDArray[np.complex128]]:
         ["O1", "O2", "I1", "I2"],
         ["CZ"],
     )
-    decomposed_cz = cz_ts.split(left_inds=["O1", "I1"], right_inds=["O2", "I2"], max_bond=4)
+    decomposed_cz = cz_ts.split(left_inds=["O1", "I1"], right_inds=["O2", "I2"], max_bond=4)  # pyright: ignore[reportCallIssue]
     return [
         decomposed_cz.tensors[0].data.astype(np.complex128),
         decomposed_cz.tensors[1].data.astype(np.complex128),
