@@ -577,7 +577,7 @@ def _get_decomposed_cz() -> list[npt.NDArray[np.complex128]]:
 
 
 @dataclass(frozen=True)
-class _AbstractTensorNetworkBackend(Backend[MBQCTensorNet], ABC):
+class _AbstractTensorNetworkBackend(Backend, ABC):
     state: MBQCTensorNet
     pattern: Pattern
     graph_prep: str

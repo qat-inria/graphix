@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import abc
 import warnings
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -33,10 +33,7 @@ if TYPE_CHECKING:
 
     from graphix.noise_models.noise_model import CommandOrNoise, NoiseModel
     from graphix.pattern import Pattern
-    from graphix.sim import BackendState, Data
-
-
-_StateT_co = TypeVar("_StateT_co", bound="BackendState", covariant=True)
+    from graphix.sim import Data
 
 
 class MeasureMethod(abc.ABC):
@@ -49,7 +46,7 @@ class MeasureMethod(abc.ABC):
 
     def measure(
         self,
-        backend: Backend[_StateT_co],
+        backend: Backend,
         cmd: BaseM,
         noise_model: NoiseModel | None = None,
         rng: Generator | None = None,
@@ -191,7 +188,7 @@ class PatternSimulator:
     def __init__(
         self,
         pattern: Pattern,
-        backend: Backend[BackendState] | str = "statevector",
+        backend: Backend | str = "statevector",
         measure_method: MeasureMethod | None = None,
         noise_model: NoiseModel | None = None,
         branch_selector: BranchSelector | None = None,
@@ -224,7 +221,7 @@ class PatternSimulator:
             :class:`graphix.sim.density_matrix.DensityMatrixBackend`\
         """
 
-        def initialize_backend() -> Backend[BackendState]:
+        def initialize_backend() -> Backend:
             nonlocal backend, branch_selector, graph_prep, noise_model
             if isinstance(backend, Backend):
                 if branch_selector is not None:

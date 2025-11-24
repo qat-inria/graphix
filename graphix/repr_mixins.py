@@ -63,6 +63,11 @@ class EnumReprMixin:
         -------
         str
             A string in the form `ClassName.MEMBER_NAME`.
+
+        Raises
+        ------
+        TypeError
+            If the class is not an Enum.
         """
         # Equivalently (as of Python 3.12), `str(value)` also produces
         # "ClassName.MEMBER_NAME", but we build it explicitly here for

@@ -27,15 +27,13 @@ from graphix.transpiler import Circuit
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from graphix.sim.base_backend import BackendState
 
-
-def compare_backend_result_with_statevec(backend_state: BackendState, statevec: Statevec) -> float:
+def compare_backend_result_with_statevec(backend_state, statevec: Statevec) -> float:  # pyright: ignore[reportUnknownParameterType]
     if isinstance(backend_state, Statevec):
         return float(np.abs(np.dot(backend_state.flatten().conjugate(), statevec.flatten())))
     if isinstance(backend_state, DensityMatrix):
         return float(np.abs(np.dot(backend_state.rho.flatten().conjugate(), DensityMatrix(statevec).rho.flatten())))
-    raise NotImplementedError(backend_state)
+    raise NotImplementedError(backend_state)  # pyright: ignore[reportUnknownArgumentType]
 
 
 class TestPattern:
@@ -121,7 +119,7 @@ class TestPattern:
         def simulate_and_measure() -> int:
             sim = PatternSimulator(pattern, backend_type)
             sim.run()
-            state = sim.backend.state
+            state = sim.backend.state  # TODO @emlynsg: fix type checking
             if isinstance(state, Statevec):
                 assert state.dims() == ()
             elif isinstance(state, DensityMatrix):

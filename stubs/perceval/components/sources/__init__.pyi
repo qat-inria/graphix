@@ -1,0 +1,3 @@
+class Source:
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]
+    def generate_distribution(self, n_samples: int) -> dict[str, float]: ...

@@ -1,0 +1,6 @@
+class AStrongSimulationBackend:
+    def __init__(self, *args, **kwargs) -> None: ...  # type: ignore[no-untyped-def]
+
+class BackendFactory:
+    def __init__(self) -> None: ...
+    def get_backend(self, name: str) -> AStrongSimulationBackend: ...

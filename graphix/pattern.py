@@ -12,7 +12,7 @@ from collections.abc import Iterable, Iterator
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, SupportsFloat, TypeVar
+from typing import TYPE_CHECKING, SupportsFloat
 
 import networkx as nx
 from typing_extensions import assert_never, override
@@ -37,10 +37,7 @@ if TYPE_CHECKING:
     from numpy.random import Generator
 
     from graphix.parameter import ExpressionOrFloat, ExpressionOrSupportsFloat, Parameter
-    from graphix.sim import Backend, BackendState, Data
-
-
-_StateT_co = TypeVar("_StateT_co", bound="BackendState", covariant=True)
+    from graphix.sim import Backend, Data
 
 
 @dataclass(frozen=True)
@@ -1332,11 +1329,11 @@ class Pattern:
 
     def simulate_pattern(
         self,
-        backend: Backend[_StateT_co] | str = "statevector",
+        backend: Backend | str = "statevector",
         input_state: Data = BasicStates.PLUS,
         rng: Generator | None = None,
         **kwargs: Any,
-    ) -> BackendState:
+    ) -> Data:
         """Simulate the execution of the pattern by using :class:`graphix.simulator.PatternSimulator`.
 
         Available backend: ['statevector', 'densitymatrix', 'tensornetwork']
