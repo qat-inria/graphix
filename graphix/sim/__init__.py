@@ -1,4 +1,8 @@
-"""Simulation backends."""
+"""
+Simulation backends for executing and managing simulations.
+
+This module provides various backends that facilitate the execution of simulations in different environments. Each backend may implement distinct strategies for managing resources, execution time, and communication with simulation components.
+"""
 
 from __future__ import annotations
 

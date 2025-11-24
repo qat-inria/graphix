@@ -1,12 +1,16 @@
-"""Pauli flow finding algorithm.
+"""
+Pauli flow finding algorithm.
 
-This module implements the algorithm presented in [1]. For a given labelled open graph (G, I, O, meas_plane), this algorithm finds a maximally delayed Pauli flow [2] in polynomial time with the number of nodes, :math:`O(N^3)`.
-If the input graph does not have Pauli measurements, the algorithm returns a general flow (gflow) if it exists by definition.
+This module implements the algorithm presented in [1]. For a given labelled open graph
+(G, I, O, meas_plane), this algorithm finds a maximally delayed Pauli flow [2] in polynomial
+time with respect to the number of nodes, :math:`O(N^3)`. If the input graph does not
+have Pauli measurements, the algorithm returns a general flow (gflow) if it exists by
+definition.
 
 References
 ----------
-[1] Mitosek and Backens, 2024 (arXiv:2410.23439).
-[2] Browne et al., 2007 New J. Phys. 9 250 (arXiv:quant-ph/0702212)
+[1] Mitosek, M., & Backens, M. (2024). arXiv:2410.23439.
+[2] Browne, D. E., et al. (2007). New J. Phys., 9, 250. arXiv:quant-ph/0702212
 """
 
 from __future__ import annotations
@@ -28,20 +32,29 @@ if TYPE_CHECKING:
 
 
 class OpenGraphIndex:
-    """A class for managing the mapping between node numbers of a given open graph and matrix indices in the Pauli flow finding algorithm.
+    """
+    A class for managing the mapping between node numbers of a given open graph and matrix indices
+    in the Pauli flow finding algorithm.
 
-    It reuses the class `:class: graphix.sim.base_backend.NodeIndex` introduced for managing the mapping between node numbers and qubit indices in the internal state of the backend.
+    This class reuses the `NodeIndex` class defined in `graphix.sim.base_backend` for managing the
+    mapping between node numbers and qubit indices in the internal state of the backend.
 
     Attributes
     ----------
-        og (OpenGraph)
-        non_inputs (NodeIndex) : Mapping between matrix indices and non-input nodes (labelled with integers).
-        non_outputs (NodeIndex) : Mapping between matrix indices and non-output nodes (labelled with integers).
-        non_outputs_optim (NodeIndex) : Mapping between matrix indices and a subset of non-output nodes (labelled with integers).
+    og : OpenGraph
+        The OpenGraph instance associated with this index manager.
+    non_inputs : NodeIndex
+        Mapping between matrix indices and non-input nodes (labelled with integers).
+    non_outputs : NodeIndex
+        Mapping between matrix indices and non-output nodes (labelled with integers).
+    non_outputs_optim : NodeIndex
+        Mapping between matrix indices and a subset of non-output nodes (labelled with integers).
 
     Notes
     -----
-    At initialization, `non_outputs_optim` is a copy of `non_outputs`. The nodes corresponding to zero-rows of the order-demand matrix are removed for calculating the P matrix more efficiently in the `:func: _find_pflow_general` routine.
+    At initialization, `non_outputs_optim` is a copy of `non_outputs`. The nodes corresponding to
+    zero-rows of the order-demand matrix are removed to calculate the P matrix more efficiently
+    in the `_find_pflow_general` routine.
     """
 
     def __init__(self, og: OpenGraph) -> None:
@@ -64,7 +77,8 @@ class OpenGraphIndex:
 
 
 def _compute_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
-    r"""Return the reduced adjacency matrix (RAdj) of the input open graph.
+    """
+    Return the reduced adjacency matrix (RAdj) of the input open graph.
 
     Parameters
     ----------
@@ -80,7 +94,7 @@ def _compute_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
     -----
     The adjacency matrix of a graph :math:`Adj_G` is an :math:`n \times n` matrix.
 
-    The RAdj matrix of an open graph OG is an :math:`(n - n_O) \times (n - n_I)` submatrix of :math:`Adj_G` constructed by removing the output rows and input columns of :math:`Adj_G`.
+    The RAdj matrix of an open graph OG is an :math:`(n - n_O) \times (n - n_I)` submatrix of :math:`Adj_G`, constructed by removing the output rows and input columns of :math:`Adj_G`.
 
     See Definition 3.3 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
@@ -100,21 +114,28 @@ def _compute_reduced_adj(ogi: OpenGraphIndex) -> MatGF2:
 
 
 def _compute_pflow_matrices(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2]:
-    r"""Construct flow-demand and order-demand matrices.
+    """
+    Construct flow-demand and order-demand matrices.
 
     Parameters
     ----------
     ogi : OpenGraphIndex
-        Open graph whose flow-demand and order-demand matrices are computed.
+        An instance of OpenGraphIndex which is used to compute the flow-demand
+        and order-demand matrices.
 
     Returns
     -------
-    flow_demand_matrix : MatGF2
-    order_demand_matrix : MatGF2
+    tuple[MatGF2]
+        A tuple containing:
+        - flow_demand_matrix : MatGF2
+          The flow-demand matrix computed from the open graph.
+        - order_demand_matrix : MatGF2
+          The order-demand matrix computed from the open graph.
 
     Notes
     -----
-    See Definitions 3.4 and 3.5, and Algorithm 1 in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    Refer to Definitions 3.4 and 3.5, as well as Algorithm 1 in Mitosek and
+    Backens, 2024 (arXiv:2410.23439) for further details.
     """
     flow_demand_matrix = _compute_reduced_adj(ogi)
     order_demand_matrix = flow_demand_matrix.copy()
@@ -152,30 +173,33 @@ def _compute_pflow_matrices(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2]:
 
 
 def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
-    r"""Construct the correction matrix :math:`C` and the ordering matrix, :math:`NC` for an open graph with equal number of inputs and outputs.
+    """
+    Construct the correction matrix :math:`C` and the ordering matrix :math:`NC` for an open graph with an equal number of inputs and outputs.
 
     Parameters
     ----------
     ogi : OpenGraphIndex
-        Open graph for which :math:`C` and :math:`NC` are computed.
+        An open graph for which the correction matrix :math:`C` and ordering matrix :math:`NC` are computed.
 
     Returns
     -------
-    correction_matrix : MatGF2
-        Matrix encoding the correction function.
-    ordering_matrix : MatGF2
-        Matrix encoding the partial ordering between nodes.
-
-    or `None`
-        if the input open graph does not have Pauli flow.
+    tuple[MatGF2, MatGF2] | None
+        A tuple containing:
+            - correction_matrix : MatGF2
+                Matrix encoding the correction function.
+            - ordering_matrix : MatGF2
+                Matrix encoding the partial ordering between nodes.
+        Returns `None` if the input open graph does not have Pauli flow.
 
     Notes
     -----
     - The ordering matrix is defined as the product of the order-demand matrix :math:`N` and the correction matrix.
 
-    - The function only returns `None` when the flow-demand matrix is not invertible (meaning that `ogi` does not have Pauli flow). The condition that the ordering matrix :math:`NC` must encode a directed acyclic graph (DAG) is verified in a subsequent step by `:func: _compute_topological_generations`.
+    - The function returns `None` only when the flow-demand matrix is not invertible, which indicates that the input `ogi` does not have Pauli flow. The condition that the ordering matrix :math:`NC` must encode a directed acyclic graph (DAG) is verified in a subsequent step by `:func: _compute_topological_generations`.
 
-    See Definitions 3.4, 3.5 and 3.6, Theorems 3.1 and 4.1, and Algorithm 2 in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    References
+    ----------
+    See Definitions 3.4, 3.5, and 3.6, Theorems 3.1 and 4.1, and Algorithm 2 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
     flow_demand_matrix, order_demand_matrix = _compute_pflow_matrices(ogi)
 
@@ -190,26 +214,25 @@ def _find_pflow_simple(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
 
 
 def _compute_p_matrix(ogi: OpenGraphIndex, nb_matrix: MatGF2) -> MatGF2 | None:
-    r"""Perform the steps 8 - 12 of the general case (larger number of outputs than inputs) algorithm.
+    """
+    Perform steps 8 - 12 of the general case (larger number of outputs than inputs) algorithm.
 
     Parameters
     ----------
     ogi : OpenGraphIndex
-        Open graph for which the matrix :math:`P` is computed.
+        The open graph for which the matrix :math:`P` is computed.
     nb_matrix : MatGF2
-        Matrix :math:`N_B`
+        The matrix :math:`N_B`.
 
     Returns
     -------
-    p_matrix : MatGF2
-        Matrix encoding the correction function.
-
-    or `None`
-        if the input open graph does not have Pauli flow.
+    MatGF2 or None
+        Returns the matrix encoding the correction function if successful,
+        or `None` if the input open graph does not have a Pauli flow.
 
     Notes
     -----
-    See Theorem 4.4, steps 8 - 12 in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    Refer to Theorem 4.4, steps 8 - 12 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
     n_no = len(ogi.non_outputs)  # number of columns of P matrix.
     n_oi_diff = len(ogi.og.outputs) - len(ogi.og.inputs)  # number of rows of P matrix.
@@ -246,13 +269,34 @@ def _find_solvable_nodes(
     solved_nodes: AbstractSet[int],
     n_oi_diff: int,
 ) -> set[int]:
-    """Return the set nodes whose associated linear system is solvable.
+    """
+    Return the set of nodes whose associated linear system is solvable.
 
-    A node is solvable if:
-        - It has not been solved yet.
-        - Its column in the second block of :math:`K_{LS}` (which determines the constants in each equation) has only zeros where it intersects rows for which all the coefficients in the first block are 0s.
+    A node is considered solvable if:
+    - It has not been solved yet.
+    - Its column in the second block of :math:`K_{LS}` (which determines the constants in each equation) contains only zeros in the rows where all the coefficients in the first block are zeros.
 
-    See Theorem 4.4, step 12.a in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    Parameters
+    ----------
+    ogi : OpenGraphIndex
+        The graph index containing the nodes and their relationships.
+    kls_matrix : MatGF2
+        The matrix representing the linear system.
+    non_outputs_set : AbstractSet[int]
+        A set of nodes that are not output nodes.
+    solved_nodes : AbstractSet[int]
+        A set of nodes that have already been solved.
+    n_oi_diff : int
+        The difference in the number of input and output variables.
+
+    Returns
+    -------
+    set[int]
+        A set of nodes whose linear systems are solvable.
+
+    References
+    ----------
+    Mitosek, M., & Backens, M. (2024). Theorem 4.4, step 12.a. arXiv:2410.23439.
     """
     solvable_nodes: set[int] = set()
 
@@ -274,11 +318,30 @@ def _find_solvable_nodes(
 def _update_p_matrix(
     ogi: OpenGraphIndex, kls_matrix: MatGF2, p_matrix: MatGF2, solvable_nodes: AbstractSet[int], n_oi_diff: int
 ) -> None:
-    """Update `p_matrix`.
+    """
+    Update the `p_matrix`.
 
-    The solution of the linear system associated with node :math:`v` in `solvable_nodes` corresponds to the column of `p_matrix` associated with node :math:`v`.
+    The solution of the linear system associated with each node :math:`v` in
+    `solvable_nodes` corresponds to the respective column of the `p_matrix`
+    associated with the same node :math:`v`.
 
-    See Theorem 4.4, steps 12.b and 12.c in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    Parameters
+    ----------
+    ogi : OpenGraphIndex
+        The open graph index used for the update.
+    kls_matrix : MatGF2
+        The matrix representing the linear system.
+    p_matrix : MatGF2
+        The matrix to be updated with the solutions.
+    solvable_nodes : AbstractSet[int]
+        A set of nodes for which the corresponding solutions are computed.
+    n_oi_diff : int
+        An integer representing the difference in node indices.
+
+    References
+    ----------
+    Theorem 4.4, steps 12.b and 12.c in Mitosek and Backens, 2024
+    (arXiv:2410.23439).
     """
     for v in solvable_nodes:
         j = ogi.non_outputs.index(v)
@@ -298,25 +361,61 @@ def _update_kls_matrix(
     n_no: int,
     n_no_optim: int,
 ) -> None:
-    """Update `kls_matrix`.
+    """
+    Update the `kls_matrix`.
 
-    Bring the linear system encoded in :math:`K_{LS}` to the row-echelon form (REF) that would be achieved by Gaussian elimination if the row and column vectors corresponding to vertices in `solvable_nodes` where not included in the starting matrix.
+    This function transforms the linear system encoded in :math:`K_{LS}`
+    into row-echelon form (REF) through Gaussian elimination, excluding
+    the row and column vectors corresponding to the vertices in
+    `solvable_nodes` from the starting matrix.
 
-    See Theorem 4.4, step 12.d in Mitosek and Backens, 2024 (arXiv:2410.23439).
+    Parameters
+    ----------
+    ogi : OpenGraphIndex
+        The open graph index used in the update process.
+    kls_matrix : MatGF2
+        The matrix representing the linear system to be updated.
+    kils_matrix : MatGF2
+        An auxiliary matrix involved in the update process.
+    solvable_nodes : AbstractSet[int]
+        The set of nodes that can be solved.
+    n_oi_diff : int
+        The number of outgoing edges from the difference source node.
+    n_no : int
+        The total number of nodes.
+    n_no_optim : int
+        The optimized number of nodes.
+
+    References
+    ----------
+    Mitosek, G., & Backens, M. (2024). Theorem 4.4, step 12.d. arXiv:2410.23439.
     """
     shift = n_oi_diff + n_no  # `n_oi_diff` + `n_no` is the column offset from the first two blocks of K_{LS}.
     row_permutation: list[int]
 
     def reorder(old_pos: int, new_pos: int) -> None:  # Used in step 12.d.vi
-        """Reorder the elements of `row_permutation`.
+        """
+        Reorder the elements of `row_permutation`.
 
-        The element at `old_pos` is placed on the right of the element at `new_pos`.
-        Example:
-        ```
-        row_permutation = [0, 1, 2, 3, 4]
-        reorder(1, 3) -> [0, 2, 3, 1, 4]
-        reorder(2, -1) -> [2, 0, 1, 3, 4]
-        ```
+        The element at `old_pos` is moved to the right of the element at `new_pos`.
+
+        Parameters
+        ----------
+        old_pos : int
+            The position of the element to be moved.
+        new_pos : int
+            The position after which the element at `old_pos` will be placed.
+
+        Examples
+        --------
+        >>> row_permutation = [0, 1, 2, 3, 4]
+        >>> reorder(1, 3)
+        >>> row_permutation
+        [0, 2, 3, 1, 4]
+
+        >>> reorder(2, -1)
+        >>> row_permutation
+        [2, 0, 1, 3, 4]
         """
         val = row_permutation.pop(old_pos)
         row_permutation.insert(new_pos + (new_pos < old_pos), val)
@@ -386,30 +485,31 @@ def _update_kls_matrix(
 
 
 def _find_pflow_general(ogi: OpenGraphIndex) -> tuple[MatGF2, MatGF2] | None:
-    r"""Construct the generalized correction matrix :math:`C'C^B` and the generalized ordering matrix, :math:`NC'C^B` for an open graph with larger number of outputs than inputs.
+    """
+    Construct the generalized correction matrix :math:`C'C^B` and the generalized ordering matrix :math:`NC'C^B` for an open graph with a larger number of outputs than inputs.
 
     Parameters
     ----------
     ogi : OpenGraphIndex
-        Open graph for which :math:`C'C^B` and :math:`NC'C^B` are computed.
+        An open graph for which :math:`C'C^B` and :math:`NC'C^B` are computed.
 
     Returns
     -------
-    correction_matrix : MatGF2
-        Matrix encoding the correction function.
-    ordering_matrix : MatGF2
-        Matrix encoding the partial ordering between nodes.
-
-    or `None`
-        if the input open graph does not have Pauli flow.
+    tuple[MatGF2, MatGF2] | None
+        If the input open graph has Pauli flow, returns a tuple containing:
+            - correction_matrix : MatGF2
+                Matrix encoding the correction function.
+            - ordering_matrix : MatGF2
+                Matrix encoding the partial ordering between nodes.
+        Returns `None` if the input open graph does not have Pauli flow.
 
     Notes
     -----
-    - The function returns `None` if
+    The function returns `None` if:
         a) The flow-demand matrix is not invertible, or
-        b) Not all linear systems of equations associated to the non-output nodes are solvable,
-    meaning that `ogi` does not have Pauli flow.
-    Condition (b) is satisfied when the flow-demand matrix :math:`M` does not have a right inverse :math:`C` such that :math:`NC` represents a directed acyclical graph (DAG).
+        b) Not all linear systems of equations associated with the non-output nodes are solvable,
+           meaning that `ogi` does not have Pauli flow.
+    Condition (b) is satisfied when the flow-demand matrix :math:`M` does not have a right inverse :math:`C` such that :math:`NC` represents a directed acyclic graph (DAG).
 
     See Theorem 4.4 and Algorithm 3 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """
@@ -515,7 +615,8 @@ def _cnc_matrices2pflow(
     correction_matrix: MatGF2,
     ordering_matrix: MatGF2,
 ) -> tuple[dict[int, set[int]], dict[int, int]] | None:
-    r"""Transform the correction and ordering matrices into a Pauli flow in its standard form (correction function and partial order).
+    """
+    Transform the correction and ordering matrices into a Pauli flow in its standard form (correction function and partial order).
 
     Parameters
     ----------
@@ -529,18 +630,22 @@ def _cnc_matrices2pflow(
     Returns
     -------
     pf : dict[int, set[int]]
-        Pauli flow correction function. pf[i] is the set of qubits to be corrected for the measurement of qubit i.
+        Pauli flow correction function, where `pf[i]` is the set of qubits to be corrected for the measurement of qubit `i`.
     l_k : dict[int, int]
         Partial order between corrected qubits, such that the pair (`key`, `value`) corresponds to (node, depth).
 
-    or `None`
-        if the ordering matrix is not a DAG, in which case the input open graph does not have Pauli flow.
+    or None
+        if the ordering matrix is not a DAG, in which case the input open graph does not have a Pauli flow.
 
     Notes
     -----
-    - The correction matrix :math:`C` is an :math:`(n - n_I) \times (n - n_O)` matrix related to the correction function :math:`c(v) = \{u \in I^c|C_{u,v} = 1\}`, where :math:`I^c` are the non-input nodes of `ogi`. In other words, the column :math:`v` of :math:`C` encodes the correction set of :math:`v`, :math:`c(v)`.
+    - The correction matrix :math:`C` is an :math:`(n - n_I) \times (n - n_O)` matrix related to the correction function
+      :math:`c(v) = \{u \in I^c|C_{u,v} = 1\}`, where :math:`I^c` are the non-input nodes of `ogi`.
+      In other words, the column :math:`v` of :math:`C` encodes the correction set of :math:`v`, :math:`c(v)`.
 
-    - The Pauli flow's ordering :math:`<_c` is the transitive closure of :math:`\lhd_c`, where the latter is related to the ordering matrix :math:`NC` as :math:`v \lhd_c w \Leftrightarrow (NC)_{w,v} = 1`, for :math:`v, w, \in O^c` two non-output nodes of `ogi`.
+    - The Pauli flow's ordering :math:`<_c` is the transitive closure of :math:`\lhd_c`,
+      where the latter is related to the ordering matrix :math:`NC` as :math:`v \lhd_c w \Leftrightarrow (NC)_{w,v} = 1`,
+      for :math:`v, w \in O^c`, two non-output nodes of `ogi`.
 
     See Definition 3.6, Lemma 3.12, and Theorem 3.1 in Mitosek and Backens, 2024 (arXiv:2410.23439).
     """

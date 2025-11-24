@@ -1,10 +1,11 @@
-"""Branch selector.
+"""
+Branch Selector Module.
 
-Branch selectors determine the computation branch that is explored
-during a simulation, meaning the choice of measurement outcomes.  The
-branch selection can be random (see :class:`RandomBranchSelector`) or
-deterministic (see :class:`ConstBranchSelector`).
-
+This module contains branch selectors that determine the computation
+branch explored during a simulation, specifically influencing the
+choice of measurement outcomes. Branch selection can either be
+random (see :class:`RandomBranchSelector`) or deterministic
+(see :class:`ConstBranchSelector`).
 """
 
 from __future__ import annotations
@@ -26,7 +27,8 @@ if TYPE_CHECKING:
 
 
 class BranchSelector(ABC):
-    """Abstract class for branch selectors.
+    """
+    Abstract class for branch selectors.
 
     A branch selector provides the method `measure`, which returns the
     measurement outcome (0 or 1) for a given qubit.
@@ -34,31 +36,30 @@ class BranchSelector(ABC):
 
     @abstractmethod
     def measure(self, qubit: int, f_expectation0: Callable[[], float], rng: Generator | None = None) -> Outcome:
-        """Return the measurement outcome of ``qubit``.
+        """
+        Return the measurement outcome of a specified qubit.
 
         Parameters
         ----------
         qubit : int
-            Index of qubit to measure
+            Index of the qubit to measure.
 
         f_expectation0 : Callable[[], float]
-            A function that the method can use to retrieve the expected
-            probability of outcome 0. The probability is computed only if
-            this function is called (lazy computation), ensuring no
-            unnecessary computational cost.
+            A callable that retrieves the expected probability of outcome 0.
+            The probability is computed only if this function is called,
+            enabling lazy computation and preventing unnecessary computational cost.
 
-        rng: Generator, optional
-            Random-number generator for measurements.
-            This generator is used only in case of random branch selection
-            (see :class:`RandomBranchSelector`).
-            If ``None``, a default random-number generator is used.
-            Default is ``None``.
+        rng : Generator, optional
+            Random-number generator for measurements. This generator is used
+            only in cases of random branch selection (see :class:`RandomBranchSelector`).
+            If `None`, a default random-number generator is used. The default is `None`.
         """
 
 
 @dataclass
 class RandomBranchSelector(BranchSelector):
-    """Random branch selector.
+    """
+    Random branch selector.
 
     Parameters
     ----------
@@ -73,11 +74,30 @@ class RandomBranchSelector(BranchSelector):
     @override
     def measure(self, qubit: int, f_expectation0: Callable[[], float], rng: Generator | None = None) -> Outcome:
         """
-        Return the measurement outcome of ``qubit``.
+        Measure the outcome of a specified qubit.
 
-        If ``pr_calc`` is ``True``, the measurement outcome is determined based on the
-        computed probability of outcome 0. Otherwise, the result is randomly chosen
-        with a 50% chance for either outcome.
+        Parameters
+        ----------
+        qubit : int
+            The index of the qubit to measure.
+        f_expectation0 : Callable[[], float]
+            A callable that computes the expectation value for outcome 0.
+        rng : Generator | None, optional
+            An optional random number generator for generating random outcomes.
+            If None, the default generator will be used.
+
+        Returns
+        -------
+        Outcome
+            The measurement outcome of the specified qubit. The result is determined
+            based on the computed probability of outcome 0 if `pr_calc` is True.
+            Otherwise, the result is randomly chosen with a 50% chance for either
+            outcome.
+
+        Notes
+        -----
+        If `pr_calc` is False, the measurement outcome is decided randomly, while
+        if True, it relies on the computation from `f_expectation0`.
         """
         rng = ensure_rng(rng)
         if self.pr_calc:
@@ -92,22 +112,23 @@ _T = TypeVar("_T", bound=Mapping[int, Outcome])
 
 @dataclass
 class FixedBranchSelector(BranchSelector, Generic[_T]):
-    """Branch selector with predefined measurement outcomes.
+    """
+    Branch selector with predefined measurement outcomes.
 
-    The mapping is fixed in ``results``. By default, an error is raised if
+    The mapping is fixed in `results`. By default, an error is raised if
     a qubit is measured without a predefined outcome. However, another
-    branch selector can be specified in ``default`` to handle such cases.
+    branch selector can be specified in `default` to handle such cases.
 
     Parameters
     ----------
     results : Mapping[int, bool]
-        A dictionary mapping qubits to their measurement outcomes.
-        If a qubit is not present in this mapping, the ``default`` branch
+        A dictionary mapping qubit indices to their measurement outcomes.
+        If a qubit is not present in this mapping, the `default` branch
         selector is used.
     default : BranchSelector | None, optional
-        Branch selector to use for qubits not present in ``results``.
-        If ``None``, an error is raised when an unmapped qubit is measured.
-        Default is ``None``.
+        Branch selector to use for qubits not present in `results`.
+        If `None`, an error is raised when an unmapped qubit is measured.
+        Default is `None`.
     """
 
     results: _T
@@ -116,10 +137,27 @@ class FixedBranchSelector(BranchSelector, Generic[_T]):
     @override
     def measure(self, qubit: int, f_expectation0: Callable[[], float], rng: Generator | None = None) -> Outcome:
         """
-        Return the predefined measurement outcome of ``qubit``, if available.
+        Measure the predefined outcome of a specified qubit.
 
-        If the qubit is not present in ``results``, the ``default`` branch selector
-        is used. If no default is provided, an error is raised.
+        Parameters
+        ----------
+        qubit : int
+            The index of the qubit to be measured.
+        f_expectation0 : Callable[[], float]
+            A callable that returns the expectation value of the measurement for the qubit.
+        rng : Generator | None, optional
+            An optional random number generator to use for stochastic processes. If None, the default generator is used.
+
+        Returns
+        -------
+        Outcome
+            The measurement outcome of the specified qubit. If the qubit is not available in the results,
+            the default branch selector is used. If no default is provided, an error is raised.
+
+        Raises
+        ------
+        ValueError
+            If the qubit is not present and no default branch selector is available.
         """
         result = self.results.get(qubit)
         if result is None:
@@ -131,9 +169,10 @@ class FixedBranchSelector(BranchSelector, Generic[_T]):
 
 @dataclass
 class ConstBranchSelector(BranchSelector):
-    """Branch selector with a constant measurement outcome.
+    """
+    Branch selector with a constant measurement outcome.
 
-    The value ``result`` is returned for every qubit.
+    The value `result` is returned for every qubit.
 
     Parameters
     ----------
@@ -145,5 +184,21 @@ class ConstBranchSelector(BranchSelector):
 
     @override
     def measure(self, qubit: int, f_expectation0: Callable[[], float], rng: Generator | None = None) -> Outcome:
-        """Return the constant measurement outcome ``result`` for any qubit."""
+        """
+        Return the constant measurement outcome ``result`` for any qubit.
+
+        Parameters
+        ----------
+        qubit : int
+            The index of the qubit to measure.
+        f_expectation0 : Callable[[], float]
+            A callable that returns the expected value for the measurement.
+        rng : Generator, optional
+            A random number generator for stochastic processes. If None, a default generator will be used.
+
+        Returns
+        -------
+        Outcome
+            The constant measurement outcome corresponding to the specified qubit.
+        """
         return self.result

@@ -1,4 +1,10 @@
-"""Test exporter to OpenQASM3."""
+"""
+Test exporter to OpenQASM3.
+
+This module provides functionality to export quantum circuits
+and related data to the OpenQASM3 format, facilitating interoperability
+with other quantum computing tools and frameworks.
+"""
 
 from __future__ import annotations
 

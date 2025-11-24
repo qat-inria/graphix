@@ -1,4 +1,4 @@
-"""Functions to visualize the resource state of MBQC pattern."""
+"Functions to visualize the resource state of the Measurement-based Quantum Computation (MBQC) pattern."
 
 from __future__ import annotations
 
@@ -34,23 +34,23 @@ if TYPE_CHECKING:
 
 
 class GraphVisualizer:
-    """A class for visualizing MBQC graphs with flow or gflow structure.
+    """
+    A class for visualizing MBQC graphs with flow or gflow structure.
 
     Attributes
     ----------
-    g : :class:`networkx.Graph`
-        The graph to be visualized
+    g : networkx.Graph
+        The graph to be visualized.
     v_in : list
-        list of input nodes
+        List of input nodes.
     v_out : list
-        list of output nodes
+        List of output nodes.
     meas_planes : dict
-        dict specifying the measurement planes for each node, except output nodes.
+        Dictionary specifying the measurement planes for each node, except output nodes.
     meas_angles : dict
-        dict specifying the measurement angles for each node, except output nodes.
+        Dictionary specifying the measurement angles for each node, except output nodes.
     local_clifford : dict
-        dict specifying the local clifford for each node.
-
+        Dictionary specifying the local Clifford for each node.
     """
 
     def __init__(
@@ -67,19 +67,21 @@ class GraphVisualizer:
 
         Parameters
         ----------
-        g : :class:`networkx.Graph`
-            NetworkX graph instance
-        v_in : list
-            list of input nodes
-        v_out : list
-            list of output nodes
-        meas_plane : dict
-            dict specifying the measurement planes for each node, except output nodes.
-            if None, all measurements are assumed to be in XY-plane.
-        meas_angles : dict
-            dict specifying the measurement angles for each node, except output nodes.
-        local_clifford : dict
-            dict specifying the local clifford for each node.
+        g : networkx.Graph[int]
+            NetworkX graph instance.
+        v_in : Collection[int]
+            Collection of input nodes.
+        v_out : Collection[int]
+            Collection of output nodes.
+        meas_plane : Mapping[int, Plane] | None, optional
+            Mapping specifying the measurement planes for each node, except output nodes.
+            If None, all measurements are assumed to be in the XY-plane. Default is None.
+        meas_angles : Mapping[int, ExpressionOrFloat] | None, optional
+            Mapping specifying the measurement angles for each node, except output nodes.
+            Default is None.
+        local_clifford : Mapping[int, Clifford] | None, optional
+            Mapping specifying the local Clifford transformations for each node.
+            Default is None.
         """
         self.graph = g
         self.v_in = v_in
@@ -104,28 +106,43 @@ class GraphVisualizer:
         """
         Visualize the graph with flow or gflow structure.
 
-        If there exists a flow structure, then the graph is visualized with the flow structure.
-        If flow structure is not found and there exists a gflow structure, then the graph is visualized
-        with the gflow structure.
-        If neither flow nor gflow structure is found, then the graph is visualized without any structure.
+        If a flow structure exists, the graph is visualized using this structure.
+        If no flow structure is found but a gflow structure exists, the graph is visualized using the gflow structure.
+        If neither structure is found, the graph is visualized without any structure.
 
         Parameters
         ----------
-        show_pauli_measurement : bool
+        show_pauli_measurement : bool, optional
             If True, the nodes with Pauli measurement angles are colored light blue.
-        show_local_clifford : bool
+            Default is True.
+
+        show_local_clifford : bool, optional
             If True, indexes of the local Clifford operator are displayed adjacent to the nodes.
-        show_measurement_planes : bool
+            Default is False.
+
+        show_measurement_planes : bool, optional
             If True, the measurement planes are displayed adjacent to the nodes.
-        show_loop : bool
-            whether or not to show loops for graphs with gflow. defaulted to True.
-        node_distance : tuple
+            Default is False.
+
+        show_loop : bool, optional
+            Whether or not to show loops for graphs with gflow.
+            Default is True.
+
+        node_distance : tuple[float, float], optional
             Distance multiplication factor between nodes for x and y directions.
-        figsize : tuple
-            Figure size of the plot.
-        filename : Path | None
-            If not None, filename of the png file to save the plot. If None, the plot is not saved.
-            Default in None.
+            Default is (1, 1).
+
+        figsize : tuple[int, int] | None, optional
+            Figure size of the plot. If None, the default size will be used.
+            Default is None.
+
+        filename : Path | None, optional
+            If not None, specifies the filename of the PNG file to save the plot.
+            If None, the plot is not saved. Default is None.
+
+        Returns
+        -------
+        None
         """
         f, l_k = gflow.find_flow(self.graph, set(self.v_in), set(self.v_out), meas_planes=self.meas_planes)  # try flow
         if f is not None and l_k is not None:
@@ -181,31 +198,35 @@ class GraphVisualizer:
         filename: Path | None = None,
     ) -> None:
         """
-        Visualize the graph with flow or gflow structure found from the given pattern.
+        Visualize the graph with flow or gflow structure derived from the specified pattern.
 
-        If pattern sequence is consistent with flow structure, then the graph is visualized with the flow structure.
-        If it is not consistent with flow structure and consistent with gflow structure, then the graph is visualized
-        with the gflow structure. If neither flow nor gflow structure is found, then the graph is visualized with all correction flows.
+        The visualization process is dependent on the consistency of the pattern sequence:
+        - If the pattern sequence is consistent with a flow structure, the graph is visualized accordingly.
+        - If it is not consistent with a flow structure but is consistent with a gflow structure, the graph is visualized in that way.
+        - If neither flow nor gflow structure is detected, the graph is visualized with all correction flows.
 
         Parameters
         ----------
         pattern : Pattern
-            pattern to be visualized
-        show_pauli_measurement : bool
-            If True, the nodes with Pauli measurement angles are colored light blue.
-        show_local_clifford : bool
-            If True, indexes of the local Clifford operator are displayed adjacent to the nodes.
-        show_measurement_planes : bool
-            If True, the measurement planes are displayed adjacent to the nodes.
-        show_loop : bool
-            whether or not to show loops for graphs with gflow. defaulted to True.
-        node_distance : tuple
-            Distance multiplication factor between nodes for x and y directions.
-        figsize : tuple
-            Figure size of the plot.
-        filename : Path | None
-            If not None, filename of the png file to save the plot. If None, the plot is not saved.
-            Default in None.
+            The pattern to be visualized.
+        show_pauli_measurement : bool, optional
+            If True, nodes with Pauli measurement angles are colored light blue. Default is True.
+        show_local_clifford : bool, optional
+            If True, indexes of the local Clifford operator are displayed adjacent to the nodes. Default is False.
+        show_measurement_planes : bool, optional
+            If True, the measurement planes are displayed adjacent to the nodes. Default is False.
+        show_loop : bool, optional
+            Whether or not to show loops for graphs with gflow. Default is True.
+        node_distance : tuple of float, optional
+            Distance multiplication factors between nodes in the x and y directions. Default is (1, 1).
+        figsize : tuple of int or None, optional
+            Size of the figure for the plot. If None, defaults to a standard size.
+        filename : Path or None, optional
+            If specified, the filename of the png file to save the plot. If None, the plot is not saved. Default is None.
+
+        Returns
+        -------
+        None
         """
         f, l_k = gflow.flow_from_pattern(pattern)  # try flow
         if f is not None and l_k is not None:
@@ -267,7 +288,19 @@ class GraphVisualizer:
 
     @staticmethod
     def _shorten_path(path: Sequence[_Point]) -> list[_Point]:
-        """Shorten the last edge not to hide arrow under the node."""
+        """
+        Shorten the last edge to prevent hiding the arrow under the node.
+
+        Parameters
+        ----------
+        path : Sequence[_Point]
+            A sequence of points representing the path to be shortened.
+
+        Returns
+        -------
+        list[_Point]
+            A list of points representing the shortened path.
+        """
         new_path = list(path)
         last = np.array(new_path[-1])
         second_last = np.array(new_path[-2])
@@ -288,9 +321,13 @@ class GraphVisualizer:
         Parameters
         ----------
         pos : Mapping[int, tuple[float, float]]
-            dictionary of node positions.
-        show_pauli_measurement : bool
-            If True, the nodes with Pauli measurement angles are colored light blue.
+            Dictionary mapping node indices to their positions in 2D space.
+        show_pauli_measurement : bool, optional
+            If True, nodes associated with Pauli measurement angles are colored light blue. Default is False.
+
+        Returns
+        -------
+        None
         """
         for node in self.graph.nodes():
             color = "black"  # default color for 'other' nodes
@@ -336,35 +373,40 @@ class GraphVisualizer:
         Nodes are colored based on their role (input, output, or other) and edges are depicted as arrows
         or dashed lines depending on whether they are in the flow mapping. Vertical dashed lines separate
         different layers of the graph. This function does not return anything but plots the graph
-        using matplotlib's pyplot.
+        using Matplotlib's pyplot.
 
         Parameters
         ----------
-        pos: Mapping[int, _Point]
+        pos : Mapping[int, _Point]
             Node positions.
-        get_paths: Callable[
-            [Mapping[int, _Point]], tuple[Mapping[_Edge, Sequence[_Point]], Mapping[_Edge, Sequence[_Point]] | None]
+        get_paths : Callable[
+            [Mapping[int, _Point]],
+            tuple[Mapping[_Edge, Sequence[_Point]], Mapping[_Edge, Sequence[_Point]] | None]
         ]
-            Given scaled node positions, return the mapping of edge paths and the mapping of arrow paths.
-        l_k: Mapping[int, int] | None
-            Layer mapping if any.
-        corrections: tuple[Mapping[int, AbstractSet[int]], Mapping[int, AbstractSet[int]]] | None
-            X and Z corrections if any.
-        show_pauli_measurement : bool
-            If True, the nodes with Pauli measurement angles are colored light blue.
-        show_local_clifford : bool
-            If True, indexes of the local Clifford operator are displayed adjacent to the nodes.
-        show_measurement_planes : bool
-            If True, the measurement planes are displayed adjacent to the nodes.
-        show_loop : bool
-            whether or not to show loops for graphs with gflow. defaulted to True.
-        node_distance : tuple
-            Distance multiplication factor between nodes for x and y directions.
-        figsize : tuple
-            Figure size of the plot.
-        filename : Path | None
-            If not None, filename of the png file to save the plot. If None, the plot is not saved.
-            Default in None.
+            Given scaled node positions, returns the mapping of edge paths and the mapping of arrow paths.
+        l_k : Mapping[int, int] | None
+            Layer mapping, if any.
+        corrections : tuple[Mapping[int, AbstractSet[int]], Mapping[int, AbstractSet[int]]] | None
+            X and Z corrections, if any.
+        show_pauli_measurement : bool, optional
+            If True, the nodes with Pauli measurement angles are colored light blue. Default is True.
+        show_local_clifford : bool, optional
+            If True, indexes of the local Clifford operator are displayed adjacent to the nodes. Default is False.
+        show_measurement_planes : bool, optional
+            If True, the measurement planes are displayed adjacent to the nodes. Default is False.
+        show_loop : bool, optional
+            Whether or not to show loops for graphs with gflow. Default is True.
+        node_distance : tuple[float, float], optional
+            Distance multiplication factor between nodes for x and y directions. Default is (1, 1).
+        figsize : _Point | None, optional
+            Figure size of the plot. If None, the default size is used. Default is None.
+        filename : Path | None, optional
+            If not None, the filename of the PNG file to save the plot. If None, the plot is not saved.
+            Default is None.
+
+        Returns
+        -------
+        None
         """
         if figsize is None:
             figsize = self.get_figsize(l_k, pos, node_distance=node_distance)
@@ -489,17 +531,17 @@ class GraphVisualizer:
 
         Parameters
         ----------
-        l_k : dict
-            Layer mapping.
-        pos : dict
-            dictionary of node positions.
-        node_distance : tuple
-            Distance multiplication factor between nodes for x and y directions.
+        l_k : Mapping[int, int] | None
+            Layer mapping. If None, the function may use default values.
+        pos : Mapping[int, _Point] | None, optional
+            Dictionary of node positions. If None, the function may compute positions based on the layer mapping.
+        node_distance : tuple[float, float], optional
+            Distance multiplication factor between nodes for the x and y directions. Default is (1, 1).
 
         Returns
         -------
-        figsize : tuple
-            figure size of the graph.
+        _Point
+            The figure size of the graph, represented as a _Point indicating width and height.
         """
         if l_k is None:
             if pos is None:
@@ -514,21 +556,23 @@ class GraphVisualizer:
         self, flow: Mapping[int, int | set[int]], pos: Mapping[int, _Point]
     ) -> tuple[dict[_Edge, list[_Point]], dict[_Edge, list[_Point]]]:
         """
-        Return the path of edges and gflow arrows.
+        Return the path of edges and flow arrows.
 
         Parameters
         ----------
-        flow : dict
-            flow mapping (including gflow or any correction flow)
-        pos : dict
-            dictionary of node positions.
+        flow : Mapping[int, int | set[int]]
+            A mapping representing the flow, which can include gflow or any correction flow.
+        pos : Mapping[int, _Point]
+            A dictionary mapping nodes to their positions.
 
         Returns
         -------
-        edge_path : dict
-            dictionary of edge paths.
-        arrow_path : dict
-            dictionary of arrow paths.
+        tuple[dict[_Edge, list[_Point]], dict[_Edge, list[_Point]]]
+            A tuple containing two dictionaries:
+            - edge_path : dict
+                A dictionary where keys are edges and values are lists of points representing the paths of the edges.
+            - arrow_path : dict
+                A dictionary where keys are edges and values are lists of points representing the paths of the flow arrows.
         """
         edge_path = self.get_edge_path_wo_structure(pos)
         edge_set = set(self.graph.edges())
@@ -539,22 +583,22 @@ class GraphVisualizer:
             if arrow[0] == arrow[1]:  # Self loop
 
                 def _point_from_node(pos: Sequence[float], dist: float, angle: float) -> _Point:
-                    """Return a point at a given distance and angle from ``pos``.
+                    """
+                    Return a point at a given distance and angle from a specified position.
 
                     Parameters
                     ----------
                     pos : Sequence[float]
-                        Coordinate of the node.
+                        Coordinate of the node, typically in the form [x, y].
                     dist : float
-                        Distance from ``pos``.
+                        Distance from the specified position.
                     angle : float
-                        Angle in degrees measured counter-clockwise from the
-                        positive x-axis.
+                        Angle in degrees measured counter-clockwise from the positive x-axis.
 
                     Returns
                     -------
                     _Point
-                        The new ``[x, y]`` coordinate.
+                        The new coordinates as a point represented by [x, y].
                     """
                     angle = np.deg2rad(angle)
                     return (pos[0] + dist * np.cos(angle), pos[1] + dist * np.sin(angle))
@@ -618,17 +662,18 @@ class GraphVisualizer:
 
     def get_edge_path_wo_structure(self, pos: Mapping[int, _Point]) -> dict[_Edge, list[_Point]]:
         """
-        Return the path of edges.
+        Return the paths of edges in the graph.
 
         Parameters
         ----------
-        pos : dict
-            dictionary of node positions.
+        pos : Mapping[int, _Point]
+            A mapping of node identifiers to their respective positions (points).
 
         Returns
         -------
-        edge_path : dict
-            dictionary of edge paths.
+        edge_path : dict[_Edge, list[_Point]]
+            A dictionary where each key is an edge and the corresponding value is
+            a list of points representing the path of that edge.
         """
         return {edge: self._find_bezier_path(edge, [pos[edge[0]], pos[edge[1]]], pos) for edge in self.graph.edges()}
 
@@ -638,15 +683,18 @@ class GraphVisualizer:
 
         Parameters
         ----------
-        f : dict
-            flow mapping.
-        l_k : dict
-            Layer mapping.
+        f : Mapping[int, set[int]]
+            A mapping of node flow, where keys are node identifiers
+            and values are sets of adjacent node identifiers.
+        l_k : Mapping[int, int]
+            A mapping of layer indices, where keys are node identifiers
+            and values are their corresponding layer indices.
 
         Returns
         -------
-        pos : dict
-            dictionary of node positions.
+        pos : dict[int, _Point]
+            A dictionary mapping node identifiers to their positions
+            as points in a coordinate system.
         """
         values_union = set().union(*f.values())
         start_nodes = set(self.graph.nodes()) - values_union
@@ -670,15 +718,15 @@ class GraphVisualizer:
 
         Parameters
         ----------
-        g : dict
-            gflow mapping.
-        l_k : dict
-            Layer mapping.
+        g : Mapping[int, set[int]]
+            Mapping representing the gflow, where keys are node indices and values are sets of connected nodes.
+        l_k : Mapping[int, int]
+            Mapping of nodes to their corresponding layers.
 
         Returns
         -------
-        pos : dict
-            dictionary of node positions.
+        pos : dict[int, _Point]
+            Dictionary mapping node indices to their respective positions in the graph.
         """
         g_edges: list[_Edge] = []
 
@@ -712,13 +760,8 @@ class GraphVisualizer:
 
         Returns
         -------
-        pos : dict
-            dictionary of node positions.
-
-        Returns
-        -------
-        pos : dict
-            dictionary of node positions.
+        pos : dict[int, _Point]
+            Dictionary mapping node identifiers to their respective positions.
         """
         layers: dict[int, int] = {}
         connected_components = list(nx.connected_components(self.graph))
@@ -803,13 +846,13 @@ class GraphVisualizer:
 
         Parameters
         ----------
-        layers : dict
+        layers : Mapping[int, int]
             Layer mapping obtained from the measurement order of the pattern.
 
         Returns
         -------
-        pos : dict
-            dictionary of node positions.
+        dict[int, _Point]
+            Dictionary of node positions.
         """
         g_prime = self.graph.copy()
         g_prime.add_nodes_from(self.graph.nodes())
@@ -827,7 +870,26 @@ class GraphVisualizer:
         node_pos: _Point,
         buffer: float = 0.2,
     ) -> bool:
-        """Determine if an edge intersects a node."""
+        """
+        Determine if an edge intersects a node.
+
+        Parameters
+        ----------
+        start : _Point
+            The starting point of the edge defined by the two points.
+        end : _Point
+            The ending point of the edge defined by the two points.
+        node_pos : _Point
+            The position of the node to check for intersection with the edge.
+        buffer : float, optional
+            The distance around the node to consider for intersection. Default is 0.2.
+
+        Returns
+        -------
+        bool
+            True if the edge intersects the node (considering the buffer),
+            False otherwise.
+        """
         start_array = np.array(start)
         end_array = np.array(end)
         if np.all(start_array == end_array):
@@ -854,7 +916,25 @@ class GraphVisualizer:
         node_pos: _Point,
         distance: float = 0.6,
     ) -> _Point:
-        """Generate a control point to bend the edge around a node."""
+        """
+        Generate a control point to bend the edge around a node.
+
+        Parameters
+        ----------
+        start : _Point
+            The starting point of the edge.
+        end : _Point
+            The ending point of the edge.
+        node_pos : _Point
+            The position of the node around which the edge needs to bend.
+        distance : float, optional
+            The distance from the node to place the control point, by default 0.6.
+
+        Returns
+        -------
+        _Point
+            The generated control point for the edge.
+        """
         node_pos_array = np.array(node_pos)
         edge_vector = np.asarray(end, dtype=np.float64) - np.asarray(start, dtype=np.float64)
         # Rotate the edge vector 90 degrees or -90 degrees according to the node position
@@ -869,7 +949,28 @@ class GraphVisualizer:
 
     @staticmethod
     def _bezier_curve(bezier_path: Sequence[_Point], t: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-        """Generate a bezier curve from a list of points."""
+        """
+        Generate a Bezier curve from a list of control points.
+
+        Parameters
+        ----------
+        bezier_path : Sequence[_Point]
+            A sequence of control points defining the Bezier curve. Each point is expected
+            to be of type `_Point`.
+        t : npt.NDArray[np.float64]
+            A 1-dimensional array of parameter values ranging from 0 to 1, representing the
+            points along the Bezier curve to calculate.
+
+        Returns
+        -------
+        npt.NDArray[np.float64]
+            A 2-dimensional array containing the points on the Bezier curve corresponding
+            to the input parameter values from `t`.
+
+        Notes
+        -----
+        The method computes the Bezier curve using the De Casteljau's algorithm.
+        """
         n = len(bezier_path) - 1  # order of the curve
         curve = np.zeros((len(t), 2))
         for i, point in enumerate(bezier_path):
@@ -883,7 +984,25 @@ class GraphVisualizer:
 
     @staticmethod
     def _check_path(path: Iterable[_Point], target_node_pos: _Point | None = None) -> list[_Point]:
-        """If there is an acute angle in the path, merge points."""
+        """
+        Check the validity of a given path and merge points if an acute angle is detected.
+
+        Parameters
+        ----------
+        path : iterable of _Point
+            An iterable collection of points representing the path to be checked.
+        target_node_pos : _Point or None, optional
+            The target position of the node, used for additional checks. Default is None.
+
+        Returns
+        -------
+        list of _Point
+            A list of points representing the modified path after merging points with acute angles, if any.
+
+        Notes
+        -----
+        An acute angle is defined as an angle less than 90 degrees formed between three consecutive points in the path.
+        """
         path = np.array(path)
         acute = True
         max_iter = 100

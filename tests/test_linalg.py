@@ -117,26 +117,29 @@ def prepare_test_f2_linear_system() -> list[LSF2TestCase]:
 
 
 def verify_elimination(mat: MatGF2, mat_red: MatGF2, n_cols_red: int, full_reduce: bool) -> None:
-    """Test gaussian elimination (GE).
+    """
+    Test Gaussian elimination (GE).
 
     Parameters
     ----------
     mat : MatGF2
-        Original matrix.
+        The original matrix.
     mat_red : MatGF2
-        Gaussian-eliminated matrix.
+        The Gaussian-eliminated matrix.
     n_cols_red : int
-        Number of columns over which `mat` was reduced.
+        The number of columns over which `mat` was reduced.
     full_reduce : bool
         Flag to check for row-reduced echelon form (`True`) or row echelon form (`False`).
 
     Notes
     -----
-    It tests that:
-        1) Matrix is in row echelon form (REF) or row-reduced echelon form.
-        2) The procedure only entails row operations.
+    This function tests that:
+        1. The matrix is in row echelon form (REF) or row-reduced echelon form (RREF).
+        2. The elimination procedure only entails row operations.
 
-        Check (2) implies that the GE procedure can be represented by a linear transformation. Thefore, we perform GE on :math:`A = [M|1]`, with :math:`M` the test matrix and :math:`1` the identiy, and we verify that :math:`M = L^{-1}M'`, where :math:`M', L` are the left and right blocks of :math:`A` after gaussian elimination.
+    Condition (2) implies that the Gaussian elimination (GE) procedure can be represented by a linear transformation.
+    Therefore, we perform GE on the augmented matrix :math:`A = [M|I]`, where :math:`M` is the test matrix and :math:`I` is the identity matrix.
+    We then verify that :math:`M = L^{-1}M'`, where :math:`M'` and :math:`L` are the left and right blocks of :math:`A` after Gaussian elimination.
     """
     mat_red_block = MatGF2(mat_red[:, :n_cols_red])
     # Check 1

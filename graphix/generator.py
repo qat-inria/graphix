@@ -1,4 +1,22 @@
-"""MBQC pattern generator."""
+"""
+MBQC Pattern Generator.
+
+This module provides functions to generate and manipulate measurement-based quantum computing (MBQC) patterns. It includes tools for constructing various quantum states, applying measurements, and simulating the outcomes of quantum computations.
+
+Key functions:
+- generate_pattern: Generates a specified MBQC pattern based on input parameters.
+- simulate_measurements: Simulates measurements on a given MBQC pattern to produce results.
+
+Usage:
+    Import the module and use the provided functions to create and analyze MBQC patterns.
+
+Examples:
+    >>> from mbqc_generator import generate_pattern
+    >>> pattern = generate_pattern(params)
+
+    >>> from mbqc_generator import simulate_measurements
+    >>> results = simulate_measurements(pattern)
+"""
 
 from __future__ import annotations
 
@@ -25,50 +43,60 @@ def generate_from_graph(
     outputs: Iterable[int],
     meas_planes: Mapping[int, Plane] | None = None,
 ) -> Pattern:
-    r"""Generate the measurement pattern from open graph and measurement angles.
+    """
+    Generate the measurement pattern from an open graph and measurement angles.
 
-    This function takes an open graph ``G = (nodes, edges, input, outputs)``,
-    specified by :class:`networkx.Graph` and two lists specifying input and output nodes.
-    Currently we support XY-plane measurements.
+    This function takes an open graph \( G = (nodes, edges, input, outputs) \),
+    specified by :class:`networkx.Graph`, along with two lists specifying input and output nodes.
+    Currently, only XY-plane measurements are supported.
 
-    Searches for the flow in the open graph using :func:`graphix.gflow.find_flow` and if found,
-    construct the measurement pattern according to the theorem 1 of [NJP 9, 250 (2007)].
+    It first searches for flow in the open graph using :func:`graphix.gflow.find_flow`.
+    If found, it constructs the measurement pattern according to Theorem 1 of
+    [NJP 9, 250 (2007)].
 
-    Then, if no flow was found, searches for gflow using :func:`graphix.gflow.find_gflow`,
-    from which measurement pattern can be constructed from theorem 2 of [NJP 9, 250 (2007)].
+    If no flow is found, it then searches for gflow using :func:`graphix.gflow.find_gflow`,
+    from which a measurement pattern can be constructed based on Theorem 2 of
+    [NJP 9, 250 (2007)].
 
-    Then, if no gflow was found, searches for Pauli flow using :func:`graphix.gflow.find_pauliflow`,
-    from which measurement pattern can be constructed from theorem 4 of [NJP 9, 250 (2007)].
+    If no gflow is found, it searches for Pauli flow using :func:`graphix.gflow.find_pauliflow`,
+    from which a measurement pattern can be constructed according to Theorem 4 of
+    [NJP 9, 250 (2007)].
 
-    The constructed measurement pattern deterministically realize the unitary embedding
+    The constructed measurement pattern deterministically realizes the unitary embedding
 
     .. math::
 
         U = \left( \prod_i \langle +_{\alpha_i} |_i \right) E_G N_{I^C},
 
-    where the measurements (bras) with always :math:`\langle+|` bases determined by the measurement
-    angles :math:`\alpha_i` are applied to the measuring nodes,
-    i.e. the randomness of the measurement is eliminated by the added byproduct commands.
+    where the measurements (bras) are always in the \(\langle +| \) basis
+    determined by the measurement angles \(\alpha_i\) that are applied to the measuring nodes,
+    effectively eliminating randomness by the added byproduct commands.
 
-    .. seealso:: :func:`graphix.gflow.find_flow` :func:`graphix.gflow.find_gflow` :func:`graphix.gflow.find_pauliflow` :class:`graphix.pattern.Pattern`
+    See also
+    --------
+    :func:`graphix.gflow.find_flow`
+    :func:`graphix.gflow.find_gflow`
+    :func:`graphix.gflow.find_pauliflow`
+    :class:`graphix.pattern.Pattern`
 
     Parameters
     ----------
     graph : :class:`networkx.Graph`
-        Graph on which MBQC should be performed
-    angles : dict
-        measurement angles for each nodes on the graph (unit of pi), except output nodes
-    inputs : list
-        list of node indices for input nodes
-    outputs : list
-        list of node indices for output nodes
-    meas_planes : dict
-        optional: measurement planes for each nodes on the graph, except output nodes
+        Graph on which MBQC should be performed.
+    angles : Mapping[int, ExpressionOrFloat]
+        Measurement angles for each node on the graph (in units of pi),
+        except for output nodes.
+    inputs : Iterable[int]
+        List of node indices for input nodes.
+    outputs : Iterable[int]
+        List of node indices for output nodes.
+    meas_planes : Mapping[int, Plane] | None, optional
+        Measurement planes for each node on the graph, except for output nodes.
 
     Returns
     -------
-    pattern : graphix.pattern.Pattern
-        constructed pattern.
+    pattern : :class:`graphix.pattern.Pattern`
+        Constructed measurement pattern.
     """
     inputs_set = set(inputs)
     outputs_set = set(outputs)
@@ -111,7 +139,51 @@ def _flow2pattern(
     f: Mapping[int, AbstractSet[int]],
     l_k: Mapping[int, int],
 ) -> Pattern:
-    """Construct a measurement pattern from a causal flow according to the theorem 1 of [NJP 9, 250 (2007)]."""
+    """
+    Construct a measurement pattern from a causal flow.
+
+    This function constructs a measurement pattern based on theorem 1 from
+    the paper "NJP 9, 250 (2007)". It utilizes the provided causal flow
+    information from the input graph and other parameters to generate
+    the corresponding measurement pattern.
+
+    Parameters
+    ----------
+    graph : nx.Graph[int]
+        The directed graph representing the causal flow, where nodes are
+        associated with integer identifiers.
+
+    angles : Mapping[int, ExpressionOrFloat]
+        A mapping of node identifiers to their associated measurement angles,
+        which can be either float values or symbolic expressions.
+
+    inputs : Iterable[int]
+        An iterable containing the identifiers of the input nodes for the
+        measurement pattern.
+
+    f : Mapping[int, AbstractSet[int]]
+        A mapping where each key is a node identifier, and the value is a
+        set of identifiers representing the nodes that are causally related
+        or influenced by the corresponding node.
+
+    l_k : Mapping[int, int]
+        A mapping where each key is a node identifier and the value is an
+        integer that represents a specific property or attribute related to
+        the node in the context of the measurement pattern.
+
+    Returns
+    -------
+    Pattern
+        The constructed measurement pattern based on the provided causal flow
+        and parameters.
+
+    Notes
+    -----
+    Ensure that the input graph is well-formed and that all mappings and
+    iterables contain valid identifiers that correspond to the nodes in the
+    graph. The output pattern will be in a form suitable for further
+    processing or analysis.
+    """
     depth, layers = graphix.gflow.get_layers(l_k)
     pattern = Pattern(input_nodes=inputs)
     for i in set(graph.nodes) - set(inputs):
@@ -142,7 +214,33 @@ def _gflow2pattern(
     g: Mapping[int, AbstractSet[int]],
     l_k: Mapping[int, int],
 ) -> Pattern:
-    """Construct a measurement pattern from a generalized flow according to the theorem 2 of [NJP 9, 250 (2007)]."""
+    """
+    Construct a measurement pattern from a generalized flow according to Theorem 2 of
+    [NJP 9, 250 (2007)].
+
+    Parameters
+    ----------
+    graph : nx.Graph[int]
+        The graph representing the structure of the system.
+    angles : Mapping[int, ExpressionOrFloat]
+        A mapping of node indices to their corresponding measurement angles (can be
+        expressions or floats).
+    inputs : Iterable[int]
+        A sequence of input node indices that will be measured.
+    meas_planes : Mapping[int, Plane]
+        A mapping of node indices to their corresponding measurement planes.
+    g : Mapping[int, AbstractSet[int]]
+        A mapping that associates each node index with a set of related node indices,
+        representing generalized flows.
+    l_k : Mapping[int, int]
+        A mapping that indicates the relationship between node indices and their
+        corresponding labels.
+
+    Returns
+    -------
+    Pattern
+        The constructed measurement pattern based on the provided parameters.
+    """
     depth, layers = graphix.gflow.get_layers(l_k)
     pattern = Pattern(input_nodes=inputs)
     for i in set(graph.nodes) - set(inputs):
@@ -168,7 +266,47 @@ def _pflow2pattern(
     p: Mapping[int, AbstractSet[int]],
     l_k: Mapping[int, int],
 ) -> Pattern:
-    """Construct a measurement pattern from a Pauli flow according to the theorem 4 of [NJP 9, 250 (2007)]."""
+    """
+    Construct a measurement pattern from a Pauli flow according to Theorem 4 of
+    [NJP 9, 250 (2007)].
+
+    Parameters
+    ----------
+    graph : nx.Graph[int]
+        The graph representation of the system, where nodes represent qubits
+        and edges represent quantum operations.
+
+    angles : Mapping[int, ExpressionOrFloat]
+        A mapping from qubit indices to their corresponding rotation angles.
+
+    inputs : Iterable[int]
+        A collection of input qubit indices that are used as the starting point
+        for constructing the measurement pattern.
+
+    meas_planes : Mapping[int, Plane]
+        A mapping from qubit indices to measurement planes associated with
+        each qubit.
+
+    p : Mapping[int, AbstractSet[int]]
+        A mapping from measurement indices to sets of qubit indices that
+        are measured together in a specific operation.
+
+    l_k : Mapping[int, int]
+        A mapping from qubit indices to integers defining the measurement
+        configurations.
+
+    Returns
+    -------
+    Pattern
+        The constructed measurement pattern that embodies the specified
+        Pauli flow.
+
+    Notes
+    -----
+    This function implements the procedure outlined in the referenced
+    paper to generate a pattern suitable for quantum measurements
+    based on the given Pauli flow.
+    """
     depth, layers = graphix.gflow.get_layers(l_k)
     pattern = Pattern(input_nodes=inputs)
     for i in set(graph.nodes) - set(inputs):

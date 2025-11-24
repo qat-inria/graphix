@@ -113,7 +113,17 @@ class TestStatevecNew:
             assert result == expected_result
 
     def test_deterministic_measure(self):
-        """Entangle |+> state with N |0> states, the (XY,0) measurement yields the outcome 0 with probability 1."""
+        """
+        Test deterministic measurement of an entangled state.
+
+        This method verifies that entangling the |+> state with N |0> states
+        results in a measurement outcome of 0 with probability 1 for the
+        (XY, 0) measurement.
+
+        Returns
+        -------
+        None
+        """
         for _ in range(10):
             # plus state (default)
             backend = StatevectorBackend()
@@ -131,7 +141,16 @@ class TestStatevecNew:
             assert list(backend.node_index) == list(range(1, n_neighbors + 1))
 
     def test_deterministic_measure_many(self):
-        """Entangle |+> state with N |0> states, the (XY,0) measurement yields the outcome 0 with probability 1."""
+        """
+        Tests the deterministic measurement of a many-body entangled state.
+
+        Entangles the |+> state with N |0> states. Performing the (XY, 0) measurement
+        yields an outcome of 0 with a probability of 1.
+
+        Returns
+        -------
+        None
+        """
         for _ in range(10):
             # plus state (default)
             backend = StatevectorBackend()
@@ -162,9 +181,20 @@ class TestStatevecNew:
             assert list(backend.node_index) == list(range(n_traps, n_neighbors + n_traps + n_whatever))
 
     def test_deterministic_measure_with_coin(self, fx_rng: Generator):
-        """Entangle |+> state with N |0> states, the (XY,0) measurement yields the outcome 0 with probability 1.
+        """
+        Test the deterministic measurement with a coin toss.
 
-        We add coin toss to that.
+        This test entangles the |+> state with N |0> states. The (XY, 0) measurement should yield the outcome 0 with a probability of 1.
+        A coin toss is added to this measurement process to assess its behavior under stochastic conditions.
+
+        Parameters
+        ----------
+        fx_rng : Generator
+            A random number generator for simulating the coin toss outcomes.
+
+        Notes
+        -----
+        This function verifies the expected outcomes in a deterministic measurement scenario modified by a coin toss.
         """
         for _ in range(10):
             # plus state (default)

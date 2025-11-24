@@ -1,4 +1,11 @@
-r"""Performant module for linear algebra on :math:`\mathbb F_2` field."""
+"""
+Performant module for linear algebra over the field :math:`\mathbb{F}_2`.
+
+This module provides efficient implementations for various linear algebra operations
+over the binary field, including matrix multiplication, vector operations, and solving
+linear equations. It is optimized for performance and memory usage, making it suitable
+for large-scale computations in applications such as coding theory and cryptography.
+"""
 
 from __future__ import annotations
 
@@ -13,43 +20,50 @@ if TYPE_CHECKING:
 
 
 class MatGF2(npt.NDArray[np.uint8]):
-    r"""Custom implementation of :math:`\mathbb F_2` matrices. This class specializes `:class:np.ndarray` to the :math:`\mathbb F_2` field with increased efficiency."""
+    """
+    Custom implementation of :math:`\mathbb{F}_2` matrices.
+
+    This class specializes :class:`np.ndarray` to the :math:`\mathbb{F}_2` field
+    with increased efficiency.
+    """
 
     def __new__(cls, data: npt.ArrayLike, copy: bool = True) -> Self:
-        """Instantiate new `MatGF2` object.
+        """
+        Instantiate a new `MatGF2` object.
 
         Parameters
         ----------
-        data : array
-            Data in array
-        copy : bool
-            Optional, defaults to `True`. If `False` and if possible, data
-            is not copied.
+        data : npt.ArrayLike
+            The data to be stored in the `MatGF2` object.
+        copy : bool, optional
+            If `True` (default), the data will be copied. If `False`, the data will
+            not be copied if it is possible to do so.
 
-        Return
+        Returns
         -------
-            MatGF2
+        MatGF2
+            A new instance of the `MatGF2` class.
         """
         arr = np.array(data, dtype=np.uint8, copy=copy)
         return super().__new__(cls, shape=arr.shape, dtype=arr.dtype, buffer=arr)
 
     def mat_mul(self, other: MatGF2 | npt.NDArray[np.uint8]) -> MatGF2:
-        r"""Multiply two matrices.
+        r"""
+        Multiply two matrices over the finite field \(\mathbb{F}_2\).
 
         Parameters
         ----------
-        other : array
-            Matrix that right-multiplies `self`.
+        other : MatGF2 | npt.NDArray[np.uint8]
+            The matrix that right-multiplies `self`.
 
         Returns
         -------
         MatGF2
-            Matrix product `self` @  `other` in :math:`\mathbb F_2`.
+            The matrix product of `self` and `other`, computed as `self` @ `other` in \(\mathbb{F}_2\).
 
         Notes
         -----
-        This function is a wrapper over :func:`_mat_mul_jit` which is a just-time compiled implementation of the matrix multiplication in :math:`\mathbb F_2`. It is more efficient than `galois.GF2.__matmul__` when the matrix `self` is sparse.
-        The implementation assumes that the arguments have the right dimensions.
+        This function is a wrapper for :func:`_mat_mul_jit`, which is a just-in-time compiled implementation of matrix multiplication in \(\mathbb{F}_2\). It is more efficient than `galois.GF2.__matmul__` when the matrix `self` is sparse. The implementation assumes that the arguments have the correct dimensions.
         """
         if self.ndim != 2 or other.ndim != 2:
             raise ValueError(
@@ -63,31 +77,36 @@ class MatGF2(npt.NDArray[np.uint8]):
         return MatGF2(_mat_mul_jit(self, other), copy=False)
 
     def compute_rank(self) -> np.intp:
-        """Get the rank of the matrix.
+        """
+        Get the rank of the matrix.
 
         Returns
         -------
-        int : int
+        int
             Rank of the matrix.
         """
         mat_a = self.row_reduction(copy=True)
         return np.count_nonzero(mat_a.any(axis=1))
 
     def right_inverse(self) -> MatGF2 | None:
-        r"""Return any right inverse of the matrix.
+        """
+        Return any right inverse of the matrix.
 
         Returns
         -------
-        rinv : MatGF2
-            Any right inverse of the matrix.
-        or `None`
-            If the matrix does not have a right inverse.
+        rinv : MatGF2 | None
+            Any right inverse of the matrix, or `None` if the matrix
+            does not have a right inverse.
 
         Notes
         -----
-        Let us consider a matrix :math:`A` of size :math:`(m \times n)`. The right inverse is a matrix :math:`B` of size :math:`(n \times m)` s.t. :math:`AB = I` where :math:`I` is the identity matrix.
-        - The right inverse only exists if :math:`rank(A) = m`. Therefore, it is necessary but not sufficient that :math:`m ≤ n`.
-        - The right inverse is unique only if :math:`m=n`.
+        Let us consider a matrix :math:`A` of size :math:`(m \times n)`.
+        The right inverse is a matrix :math:`B` of size :math:`(n \times m)`
+        such that :math:`AB = I`, where :math:`I` is the identity matrix.
+
+        - The right inverse only exists if :math:`\text{rank}(A) = m`.
+          Therefore, it is necessary but not sufficient that :math:`m \leq n`.
+        - The right inverse is unique only if :math:`m = n`.
         """
         m, n = self.shape
         if m > n:
@@ -110,16 +129,17 @@ class MatGF2(npt.NDArray[np.uint8]):
         return rinv
 
     def null_space(self) -> MatGF2:
-        r"""Return the null space of the matrix.
+        """
+        Return the null space of the matrix.
 
         Returns
         -------
         MatGF2
-            The rows of the basis matrix are the basis vectors that span the null space. The number of rows of the basis matrix is the dimension of the null space.
+            A matrix whose rows are the basis vectors that span the null space. The number of rows in this basis matrix corresponds to the dimension of the null space.
 
         Notes
         -----
-        This implementation appear to be more efficient than `:func:galois.GF2.null_space`.
+        This implementation appears to be more efficient than `:func:galois.GF2.null_space`.
         """
         m, n = self.shape
 
@@ -131,15 +151,16 @@ class MatGF2(npt.NDArray[np.uint8]):
         return ref[row_idxs, m:].view(MatGF2)
 
     def gauss_elimination(self, ncols: int | None = None, copy: bool = True) -> MatGF2:
-        """Return row echelon form (REF) by performing Gaussian elimination.
+        """
+        Return row echelon form (REF) by performing Gaussian elimination.
 
         Parameters
         ----------
-        n_cols : int (optional)
-            Number of columns over which to perform Gaussian elimination. The default is `None` which represents the number of columns of the matrix.
+        ncols : int, optional
+            Number of columns over which to perform Gaussian elimination. The default is `None`, which represents the number of columns of the matrix.
 
-        copy : bool (optional)
-            If `True`, the REF matrix is copied into a new instance, otherwise `self` is modified. Defaults to `True`.
+        copy : bool, optional
+            If `True`, a new instance containing the REF matrix is created; otherwise, `self` is modified. Defaults to `True`.
 
         Returns
         -------
@@ -152,19 +173,20 @@ class MatGF2(npt.NDArray[np.uint8]):
         return MatGF2(_elimination_jit(mat_ref, ncols=ncols_value, full_reduce=False), copy=False)
 
     def row_reduction(self, ncols: int | None = None, copy: bool = True) -> MatGF2:
-        """Return row-reduced echelon form (RREF) by performing Gaussian elimination.
+        """
+        Return the row-reduced echelon form (RREF) by performing Gaussian elimination.
 
         Parameters
         ----------
-        n_cols : int (optional)
-            Number of columns over which to perform Gaussian elimination. The default is `None` which represents the number of columns of the matrix.
+        ncols : int, optional
+            Number of columns over which to perform Gaussian elimination. The default is `None`, which represents the number of columns of the matrix.
 
-        copy : bool (optional)
-            If `True`, the RREF matrix is copied into a new instance, otherwise `self` is modified. Defaults to `True`.
+        copy : bool, optional
+            If `True`, the RREF matrix is copied into a new instance; otherwise, `self` is modified. Defaults to `True`.
 
         Returns
         -------
-        mat_ref: MatGF2
+        MatGF2
             The matrix in row-reduced echelon form.
         """
         ncols_value = self.shape[1] if ncols is None else ncols
@@ -174,7 +196,8 @@ class MatGF2(npt.NDArray[np.uint8]):
 
 
 def solve_f2_linear_system(mat: MatGF2, b: MatGF2) -> MatGF2:
-    r"""Solve the linear system (LS) `mat @ x == b`.
+    """
+    Solve the linear system (LS) `mat @ x == b`.
 
     Parameters
     ----------
@@ -190,7 +213,7 @@ def solve_f2_linear_system(mat: MatGF2, b: MatGF2) -> MatGF2:
 
     Notes
     -----
-    This function is not integrated in `:class: graphix.linalg.MatGF2` because it does not perform any checks on the form of `mat` to ensure that it is in REF or that the system is solvable.
+    This function is not integrated into `graphix.linalg.MatGF2` because it does not perform any checks on the form of `mat` to ensure that it is in REF or that the system is solvable.
     """
     return MatGF2(_solve_f2_linear_system_jit(mat, b), copy=False)
 
@@ -199,7 +222,43 @@ def solve_f2_linear_system(mat: MatGF2, b: MatGF2) -> MatGF2:
 def _solve_f2_linear_system_jit(
     mat_data: npt.NDArray[np.uint8], b_data: npt.NDArray[np.uint8]
 ) -> npt.NDArray[np.uint8]:
-    """See docstring of `:func:solve_f2_linear_system` for details."""
+    """
+    Solve a linear system over the finite field GF(2).
+
+    This function utilizes Just-In-Time (JIT) compilation to efficiently solve
+    the linear system represented in binary (GF(2)) format. It takes a matrix
+    and a vector as inputs, performing the necessary operations to find a solution
+    to the system Ax = b, where A is the input matrix and b is the input vector.
+
+    Parameters
+    ----------
+    mat_data : ndarray, shape (m, n), dtype(uint8)
+        The coefficient matrix of the linear system, where each entry is a
+        binary element (0 or 1).
+
+    b_data : ndarray, shape (m,), dtype(uint8)
+        The right-hand side vector of the linear system, also containing binary
+        elements (0 or 1).
+
+    Returns
+    -------
+    ndarray, shape (n,), dtype(uint8)
+        The solution vector of the linear system, where each entry is a
+        binary element representing the solution to the system. If the system
+        is inconsistent, an appropriate solution representation should be
+        returned, such as a vector of zeros.
+
+    Notes
+    -----
+    For more detailed information about the algorithm and its application,
+    see the docstring of the `solve_f2_linear_system` function.
+
+    Examples
+    --------
+    >>> A = np.array([[1, 0, 1], [1, 1, 0]], dtype=np.uint8)
+    >>> b = np.array([1, 0], dtype=np.uint8)
+    >>> solution = _solve_f2_linear_system_jit(A, b)
+    """
     m, n = mat_data.shape
     x = np.zeros(n, dtype=np.uint8)
 
@@ -236,33 +295,34 @@ def _solve_f2_linear_system_jit(
 
 @nb.njit("uint8[:,::1](uint8[:,::1], uint64, boolean)")
 def _elimination_jit(mat_data: npt.NDArray[np.uint8], ncols: int, full_reduce: bool) -> npt.NDArray[np.uint8]:
-    r"""Return row echelon form (REF) or row-reduced echelon form (RREF) by performing Gaussian elimination.
+    """
+    Return row echelon form (REF) or row-reduced echelon form (RREF) by performing Gaussian elimination.
 
     Parameters
     ----------
     mat_data : npt.NDArray[np.uint8]
-        Matrix to be gaussian-eliminated.
-    n_cols : int
+        Matrix to be Gaussian-eliminated.
+    ncols : int
         Number of columns over which to perform Gaussian elimination.
     full_reduce : bool
         Flag determining the operation mode. Output is in RREF if `True`, REF otherwise.
 
     Returns
     -------
-    mat_data: npt.NDArray[np.uint8]
+    npt.NDArray[np.uint8]
         The matrix in row(-reduced) echelon form.
 
     Notes
     -----
-    Adapted from `:func: galois.FieldArray.row_reduction`, which renders the matrix in row-reduced echelon form (RREF) and specialized for :math:`\mathbb F_2`.
+    Adapted from `galois.FieldArray.row_reduction`, which renders the matrix in row-reduced echelon form (RREF) and is specialized for :math:`\mathbb{F}_2`.
 
-    Row echelon form (REF):
+    Row echelon form (REF) characteristics:
         1. All rows having only zero entries are at the bottom.
         2. The leading entry of every nonzero row is on the right of the leading entry of every row above.
-        3. (1) and (2) imply that all entries in a column below a leading coefficient are zeros.
-        4. It's the result of Gaussian elimination.
+        3. Points (1) and (2) imply that all entries in a column below a leading coefficient are zeros.
+        4. It represents the result of Gaussian elimination.
 
-    For matrices over :math:`\mathbb F_2` the only difference between REF and RREF is that elements above a leading 1 can be non-zero in REF but must be 0 in RREF.
+    For matrices over :math:`\mathbb{F}_2`, the only difference between REF and RREF is that elements above a leading 1 can be non-zero in REF but must be 0 in RREF.
     """
     m, n = mat_data.shape
     p = 0  # Pivot
@@ -302,7 +362,30 @@ def _elimination_jit(mat_data: npt.NDArray[np.uint8], ncols: int, full_reduce: b
 
 @nb.njit("uint8[:,::1](uint8[:,::1], uint8[:,::1])", parallel=True)
 def _mat_mul_jit(m1: npt.NDArray[np.uint8], m2: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
-    """See docstring of `:func:MatGF2.__matmul__` for details."""
+    """
+    Perform matrix multiplication of two uint8 NumPy arrays using just-in-time compilation.
+
+    Parameters
+    ----------
+    m1 : numpy.ndarray
+        A 2-dimensional array of shape (m, k), where m and k are positive integers.
+        The array must contain uint8 values.
+
+    m2 : numpy.ndarray
+        A 2-dimensional array of shape (k, n), where n is a positive integer.
+        The array must contain uint8 values.
+
+    Returns
+    -------
+    numpy.ndarray
+        A 2-dimensional array of shape (m, n) containing the result of the matrix multiplication,
+        with data type uint8.
+
+    Notes
+    -----
+    This function utilizes Numba's JIT compilation for improved performance.
+    For more details, see the docstring of `MatGF2.__matmul__`.
+    """
     m, l = m1.shape
     _, n = m2.shape
 

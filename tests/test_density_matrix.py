@@ -37,7 +37,33 @@ def _randdm_raw(nqubits: int, rng: Generator) -> npt.NDArray[np.complex128]:
 
 
 class TestDensityMatrix:
-    """Test for DensityMatrix class."""
+    """
+    Test for the DensityMatrix class.
+
+    This class contains unit tests to verify the functionality and correctness
+    of the DensityMatrix class. Each test ensures various aspects of the
+    DensityMatrix implementation adhere to expected outcomes.
+
+    Methods
+    -------
+    test_initialization()
+        Tests the initialization of the DensityMatrix class with valid and invalid inputs.
+
+    test_density_matrix_properties()
+        Verifies the properties of a valid density matrix, including Hermitian and trace-one conditions.
+
+    test_addition()
+        Tests the addition operation for density matrices, ensuring correct results.
+
+    test_multiplication()
+        Tests the multiplication operation for density matrices, verifying the expected behavior.
+
+    test_eigenvalues()
+        Tests the eigenvalue computation for density matrices, ensuring correct eigenvalues are returned.
+
+    test_invalid_operations()
+        Tests various invalid operations to ensure appropriate exceptions are raised.
+    """
 
     def test_init_without_data_fail(self) -> None:
         with pytest.raises(ValueError):
@@ -228,7 +254,23 @@ class TestDensityMatrix:
             dm.expectation_single(op, nqb + 3)
 
     def test_expectation_single_success(self, fx_rng: Generator) -> None:
-        """Compare with pure states."""
+        """
+        Test the expectation value calculation for a single success case.
+
+        This method compares the computed expectation values of a density matrix
+        against those of pure states. It ensures that the expectations align as
+        expected when the input states are pure.
+
+        Parameters
+        ----------
+        fx_rng : Generator
+            A random number generator used to generate test inputs for the
+            expectation value calculations.
+
+        Returns
+        -------
+        None
+        """
         nqb = int(fx_rng.integers(1, 4))
         # NOTE a statevector object so can't use its methods
         target_qubit = int(fx_rng.integers(low=0, high=nqb))
@@ -741,7 +783,23 @@ class TestDensityMatrix:
         assert np.allclose(dm.rho, expected_dm)
 
     def test_apply_random_channel_one_qubit(self, fx_rng: Generator) -> None:
-        """Test using complex parameters."""
+        """
+        Test the application of a random channel on a one-qubit density matrix.
+
+        This method verifies the correctness of the operation of a randomly generated
+        quantum channel applied to a single qubit. The test ensures that the resulting
+        density matrix adheres to the expected properties of quantum mechanics, including
+        normalization and positivity.
+
+        Parameters
+        ----------
+        fx_rng : Generator
+            A random number generator used for creating the random channel parameters.
+
+        Returns
+        -------
+        None
+        """
         # check against statevector backend by hand for now.
         # create random density matrix
 
@@ -789,7 +847,19 @@ class TestDensityMatrix:
         assert np.allclose(dm.rho, expected_dm)
 
     def test_apply_random_channel_two_qubits(self, fx_rng: Generator) -> None:
-        """Test random 2-qubit channel on a rank 1 dm (pure state)."""
+        """
+        Test the application of a random 2-qubit channel on a rank 1 density matrix (pure state).
+
+        Parameters
+        ----------
+        fx_rng : Generator
+            A random number generator used to create the random channel.
+
+        Returns
+        -------
+        None
+            This method does not return any value, it only performs validation checks on the state resulting from the channel application.
+        """
         nqubits = int(fx_rng.integers(2, 5))
 
         # target qubits indices
@@ -828,7 +898,24 @@ class TestDensityMatrix:
         assert np.allclose(dm.rho, expected_dm)
 
     def test_apply_channel_fail(self, fx_rng: Generator) -> None:
-        """Test apply a channel that is not a Channel object."""
+        """
+        Test applying a channel that is not a Channel object.
+
+        This test checks the behavior of the apply method when the provided
+        input is not an instance of the Channel class. It is expected
+        to raise a TypeError or a similar exception indicating that the
+        input is invalid.
+
+        Parameters
+        ----------
+        fx_rng : Generator
+            A random number generator instance used in the test.
+
+        Raises
+        ------
+        TypeError
+            If the input channel is not a valid Channel object.
+        """
         nqubits = int(fx_rng.integers(2, 5))
         # i = fx_rng.integers(0, nqubits)
 
@@ -843,7 +930,25 @@ class TestDensityMatrix:
 
 
 class TestDensityMatrixBackend:
-    """Test for DensityMatrixBackend class."""
+    """
+    Test for the DensityMatrixBackend class.
+
+    This class contains unit tests to verify the functionality and performance
+    of the DensityMatrixBackend implementation.
+
+    Methods
+    -------
+    test_initialization():
+        Test the initialization of the DensityMatrixBackend class.
+
+    test_some_functionality():
+        Test a specific functionality of the DensityMatrixBackend.
+
+    test_edge_cases():
+        Test how the DensityMatrixBackend handles edge cases.
+
+    ...
+    """
 
     # test initialization only
     def test_init_success(self, fx_rng: Generator, hadamardpattern: Pattern, randpattern: Pattern, nqb: int) -> None:

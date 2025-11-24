@@ -1,4 +1,4 @@
-"""Data validator command classes."""
+"Data validator command classes."
 
 from __future__ import annotations
 
@@ -25,7 +25,14 @@ Node = int
 
 
 class CommandKind(Enum):
-    """Tag for command kind."""
+    """
+    Tag for command kind.
+
+    Attributes
+    ----------
+    kind : str
+        The specific kind of command represented by this tag.
+    """
 
     N = enum.auto()
     M = enum.auto()
@@ -39,7 +46,28 @@ class CommandKind(Enum):
 
 
 class _KindChecker:
-    """Enforce tag field declaration."""
+    """
+    Enforce tag field declaration.
+
+    This class checks the declaration of tag fields to ensure that they
+    adhere to the specified requirements.
+
+    Attributes
+    ----------
+    tag_fields : list of str
+        A list containing the names of the tag fields.
+
+    Methods
+    -------
+    check_field_declaration(field_name)
+        Validates if the given field name is declared as a tag field.
+
+    add_tag_field(field_name)
+        Adds a new tag field to the list of tag fields if it is not already declared.
+
+    remove_tag_field(field_name)
+        Removes the specified tag field from the list of tag fields if it exists.
+    """
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
@@ -48,14 +76,15 @@ class _KindChecker:
 
 @dataclasses.dataclass(repr=False)
 class N(_KindChecker, DataclassReprMixin):
-    r"""Preparation command.
+    """
+    Preparation command.
 
     Parameters
     ----------
     node : int
         Index of the qubit to prepare.
     state : ~graphix.states.State, optional
-        Initial state, defaults to :class:`~graphix.states.BasicStates.PLUS`.
+        Initial state. Defaults to :class:`~graphix.states.BasicStates.PLUS`.
     """
 
     node: Node
@@ -65,13 +94,15 @@ class N(_KindChecker, DataclassReprMixin):
 
 @dataclasses.dataclass(repr=False)
 class BaseM(DataclassReprMixin):
-    """Base measurement command.
+    """
+    Base measurement command.
 
-    Represent a measurement of a node. In `graphix`, a measurement is an instance of
-    class `M`, with given plane, angles, and domains. The base class `BaseM` allows users to define
-    new class of measurements with different abstractions. For example, in the context
-    of blind computations, the server only knows which node is measured, and the parameters
-    are given by the :class:`graphix.simulator.MeasureMethod` provided by the client.
+    Represents a measurement of a node. In `graphix`, a measurement is an instance of
+    the class `M`, with specified plane, angles, and domains. The base class `BaseM`
+    allows users to define new classes of measurements with different abstractions.
+    For example, in the context of blind computations, the server only knows which node
+    is being measured, and the parameters are provided by the
+    :class:`graphix.simulator.MeasureMethod` from the client.
     """
 
     node: Node
@@ -80,14 +111,15 @@ class BaseM(DataclassReprMixin):
 
 @dataclasses.dataclass(repr=False)
 class M(BaseM, _KindChecker):
-    r"""Measurement command.
+    """
+    Measurement command.
 
     Parameters
     ----------
     node : int
         Node index of the measured qubit.
     plane : Plane, optional
-        Measurement plane, defaults to :class:`~graphix.fundamentals.Plane.XY`.
+        Measurement plane. Defaults to :class:`~graphix.fundamentals.Plane.XY`.
     angle : ExpressionOrFloat, optional
         Rotation angle divided by :math:`\pi`.
     s_domain : set[int], optional
@@ -103,17 +135,18 @@ class M(BaseM, _KindChecker):
     kind: ClassVar[Literal[CommandKind.M]] = dataclasses.field(default=CommandKind.M, init=False)
 
     def clifford(self, clifford_gate: Clifford) -> M:
-        r"""Return a new measurement command with a Clifford applied.
+        """
+        Return a new measurement command with a Clifford applied.
 
         Parameters
         ----------
         clifford_gate : ~graphix.clifford.Clifford
-            Clifford gate to apply before the measurement.
+            The Clifford gate to apply before the measurement.
 
         Returns
         -------
         :class:`~graphix.command.M`
-            Equivalent command representing the pattern ``MC``.
+            An equivalent command representing the pattern ``MC``.
         """
         domains = clifford_gate.commute_domains(Domains(self.s_domain, self.t_domain))
         update = MeasureUpdate.compute(self.plane, False, False, clifford_gate)
@@ -128,11 +161,12 @@ class M(BaseM, _KindChecker):
 
 @dataclasses.dataclass(repr=False)
 class E(_KindChecker, DataclassReprMixin):
-    r"""Entanglement command between two qubits.
+    """
+    Entanglement command between two qubits.
 
     Parameters
     ----------
-    nodes : tuple[int, int]
+    nodes : tuple of int
         Pair of nodes to entangle.
     """
 
@@ -142,7 +176,8 @@ class E(_KindChecker, DataclassReprMixin):
 
 @dataclasses.dataclass(repr=False)
 class C(_KindChecker, DataclassReprMixin):
-    r"""Local Clifford gate command.
+    """
+    Local Clifford gate command.
 
     Parameters
     ----------
@@ -159,7 +194,8 @@ class C(_KindChecker, DataclassReprMixin):
 
 @dataclasses.dataclass(repr=False)
 class X(_KindChecker, DataclassReprMixin):
-    r"""X correction command.
+    """
+    X correction command.
 
     Parameters
     ----------
@@ -176,13 +212,14 @@ class X(_KindChecker, DataclassReprMixin):
 
 @dataclasses.dataclass(repr=False)
 class Z(_KindChecker, DataclassReprMixin):
-    r"""Z correction command.
+    """
+    Z correction command.
 
     Parameters
     ----------
     node : int
         Node to correct.
-    domain : set[int], optional
+    domain : set of int, optional
         Domain for the byproduct operator.
     """
 
@@ -193,7 +230,8 @@ class Z(_KindChecker, DataclassReprMixin):
 
 @dataclasses.dataclass(repr=False)
 class S(_KindChecker, DataclassReprMixin):
-    r"""S command.
+    """
+    S command.
 
     Parameters
     ----------
@@ -210,12 +248,15 @@ class S(_KindChecker, DataclassReprMixin):
 
 @dataclasses.dataclass(repr=False)
 class T(_KindChecker):
-    r"""T command.
+    """
+    T command.
+
+    This command acts globally without any parameters.
 
     Parameters
     ----------
-    None
-        The T command acts globally without parameters.
+    None : None
+        The T command does not require any parameters for its operation.
     """
 
     kind: ClassVar[Literal[CommandKind.T]] = dataclasses.field(default=CommandKind.T, init=False)
@@ -231,7 +272,8 @@ else:
 
 @dataclasses.dataclass
 class MeasureUpdate:
-    r"""Describe how a measure is changed by signals and a vertex operator.
+    """
+    Describe how a measure is changed by signals and a vertex operator.
 
     Parameters
     ----------
@@ -249,23 +291,24 @@ class MeasureUpdate:
 
     @staticmethod
     def compute(plane: Plane, s: bool, t: bool, clifford_gate: Clifford) -> MeasureUpdate:
-        r"""Compute the measurement update.
+        """
+        Compute the measurement update.
 
         Parameters
         ----------
         plane : ~graphix.fundamentals.Plane
             Measurement plane of the command.
         s : bool
-            Whether an :math:`X` signal is present.
+            Indicates if an :math:`X` signal is present.
         t : bool
-            Whether a :math:`Z` signal is present.
+            Indicates if a :math:`Z` signal is present.
         clifford_gate : ~graphix.clifford.Clifford
             Vertex operator applied before the measurement.
 
         Returns
         -------
         MeasureUpdate
-            Update describing the new measurement.
+            An update describing the new measurement.
         """
         gates = list(map(Pauli.from_axis, plane.axes))
         if s:

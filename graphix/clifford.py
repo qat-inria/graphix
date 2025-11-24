@@ -1,4 +1,13 @@
-"""24 Unique single-qubit Clifford gates and their multiplications, conjugations and Pauli conjugations."""
+"""
+24 Unique single-qubit Clifford gates and their multiplications, conjugations,
+and Pauli conjugations.
+
+This module provides functionalities for defining and manipulating the 24 unique
+single-qubit Clifford gates. It includes operations such as multiplying gates,
+performing conjugations, and applying Pauli conjugations. Each gate is represented
+in a standard form and can be combined with other gates to form complex quantum
+operations.
+"""
 
 from __future__ import annotations
 
@@ -28,7 +37,29 @@ if TYPE_CHECKING:
 
 
 class Clifford(Enum):
-    """Clifford gate."""
+    """
+    Clifford Gate Class.
+
+    The Clifford class represents a quantum gate that is a member of the
+    Clifford group. This group consists of gates that preserve the
+    structure of quantum computations and can be efficiently simulated
+    on a classical computer.
+
+    Attributes
+    ----------
+    name : str
+        The name of the Clifford gate.
+    matrix : numpy.ndarray
+        The unitary matrix representation of the Clifford gate.
+
+    Methods
+    -------
+    apply(state):
+        Applies the Clifford gate to the given quantum state.
+
+    inverse():
+        Returns the inverse of the Clifford gate.
+    """
 
     # MEMO: Cannot use ClassVar here
     I: Clifford
@@ -66,18 +97,34 @@ class Clifford(Enum):
 
     @property
     def matrix(self) -> npt.NDArray[np.complex128]:
-        """Return the matrix of the Clifford gate."""
+        """
+        Return the matrix representation of the Clifford gate.
+
+        Returns
+        -------
+        npt.NDArray[np.complex128]
+            A complex-valued numpy array representing the matrix of the Clifford gate.
+        """
         return CLIFFORD[self.value]
 
     @staticmethod
     def try_from_matrix(mat: npt.NDArray[Any]) -> Clifford | None:
-        """Find the Clifford gate from the matrix.
+        """
+        Try to construct a Clifford gate from a given matrix.
 
-        Return `None` if not found.
+        Parameters
+        ----------
+        mat : npt.NDArray[Any]
+            The input matrix that represents a potential Clifford gate.
+
+        Returns
+        -------
+        Clifford or None
+            The corresponding Clifford gate if found, otherwise None.
 
         Notes
         -----
-        Global phase is ignored.
+        The global phase is ignored when determining the Clifford gate.
         """
         if mat.shape != (2, 2):
             return None
@@ -93,39 +140,136 @@ class Clifford(Enum):
         return None
 
     def __repr__(self) -> str:
-        """Return the Clifford expression on the form of HSZ decomposition."""
+        """
+        Return a string representation of the Clifford expression in the form of
+        HSZ decomposition.
+
+        Returns
+        -------
+        str
+            A string that represents the Clifford expression.
+        """
         formula = " @ ".join([f"Clifford.{gate}" for gate in self.hsz])
         if len(self.hsz) == 1:
             return formula
         return f"({formula})"
 
     def __str__(self) -> str:
-        """Return the name of the Clifford gate."""
+        """
+        Return the string representation of the Clifford gate.
+
+        This method retrieves the name of the specific Clifford gate
+        represented by the instance.
+
+        Returns
+        -------
+        str
+            The name of the Clifford gate.
+        """
         return CLIFFORD_LABEL[self.value]
 
     @property
     def conj(self) -> Clifford:
-        """Return the conjugate of the Clifford gate."""
+        """
+        Return the conjugate of the Clifford gate.
+
+        A Clifford gate is a type of quantum gate that is important in quantum computing.
+        The conjugate of a Clifford gate is obtained by applying the conjugate operation
+        to the gate representation.
+
+        Returns
+        -------
+        Clifford
+            A new Clifford gate that represents the conjugate of the original gate.
+        """
         return Clifford(CLIFFORD_CONJ[self.value])
 
     @property
     def hsz(self) -> list[Clifford]:
-        """Return a decomposition of the Clifford gate with the gates `H`, `S`, `Z`."""
+        """
+        Return a decomposition of the Clifford gate using the gates 'H', 'S', and 'Z'.
+
+        The decomposition provides a representation of the Clifford gate
+        in terms of the Hadamard ('H'), Phase ('S'), and Pauli-Z ('Z') gates.
+
+        Returns
+        -------
+        list[Clifford]
+            A list containing the decomposition of the Clifford gate into
+            the specified gate operations.
+        """
         return [Clifford(i) for i in CLIFFORD_HSZ_DECOMPOSITION[self.value]]
 
     @property
     def qasm3(self) -> tuple[str, ...]:
-        """Return a decomposition of the Clifford gate as qasm3 gates."""
+        """
+        Return a decomposition of the Clifford gate as qasm3 gates.
+
+        Returns
+        -------
+        tuple[str, ...]
+            A tuple containing the qasm3 representation of the
+            Clifford gate decomposition.
+
+        Notes
+        -----
+        The qasm3 format is used for representing quantum circuits in a
+        standardized way for various quantum programming frameworks.
+        """
         return CLIFFORD_TO_QASM3[self.value]
 
     def __matmul__(self, other: Clifford) -> Clifford:
-        """Multiplication within the Clifford group (modulo unit factor)."""
+        """
+        Perform matrix multiplication within the Clifford group.
+
+        Parameters
+        ----------
+        other : Clifford
+            The Clifford object to multiply with the current instance.
+
+        Returns
+        -------
+        Clifford
+            A new Clifford object resulting from the multiplication of the two Clifford instances,
+            computed modulo a unit factor.
+
+        Notes
+        -----
+        This operation follows the rules of multiplication specific to the Clifford group, ensuring
+        that the result remains within the group.
+
+        Examples
+        --------
+        Here is an example of how to use the __matmul__ method:
+
+            >>> c1 = Clifford(...)
+            >>> c2 = Clifford(...)
+            >>> result = c1 @ c2
+        """
         if isinstance(other, Clifford):
             return Clifford(CLIFFORD_MUL[self.value][other.value])
         return NotImplemented
 
     def measure(self, pauli: Pauli) -> Pauli:
-        """Compute C† P C."""
+        """
+        Compute the measurement of a Pauli operator using Clifford operations.
+
+        Parameters
+        ----------
+        pauli : Pauli
+            The Pauli operator to be measured.
+
+        Returns
+        -------
+        Pauli
+            The result of the measurement operation, which is the transformed Pauli operator
+            after applying the Clifford operations.
+
+        Notes
+        -----
+        This method computes the result of the operation \( C^\dagger P C \), where \( C \)
+        is the Clifford operation and \( P \) is the given Pauli operator.
+        """
         if pauli.symbol == IXYZ.I:
             return copy.deepcopy(pauli)
         table = CLIFFORD_MEASURE[self.value]
@@ -143,9 +287,22 @@ class Clifford(Enum):
         """
         Commute `X^sZ^t` with `C`.
 
-        Given `X^sZ^t`, return `X^s'Z^t'` such that `X^sZ^tC = CX^s'Z^t'`.
+        Given the operator `X^sZ^t`, this method returns the operator `X^s'Z^t'` such that the equality
+        `X^sZ^t C = C X^s'Z^t'` holds.
 
-        Note that applying the method to `self.conj` computes the reverse commutation:
+        Parameters
+        ----------
+        domains : Domains
+            The domains object containing the representation of the operators involved in the commutation.
+
+        Returns
+        -------
+        Domains
+            A new domains object representing the commuted operator `X^s'Z^t'`.
+
+        Notes
+        -----
+        Applying this method to `self.conj` computes the reverse commutation:
         indeed, `C†X^sZ^t = (X^sZ^tC)† = (CX^s'Z^t')† = X^s'Z^t'C†`.
         """
         s_domain = domains.s_domain.copy()

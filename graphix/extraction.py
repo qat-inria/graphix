@@ -1,4 +1,4 @@
-"""Functions to extract fusion network from a given graph state."""
+"Functions to extract the fusion network from a given graph state."
 
 from __future__ import annotations
 
@@ -14,26 +14,52 @@ from graphix.graphsim import GraphState
 
 
 class ResourceType(Enum):
-    """Resource type."""
+    """
+    Represents a type of resource.
+
+    Attributes
+    ----------
+    name : str
+        The name of the resource type.
+    description : str
+        A brief description of the resource type.
+    capacity : int
+        The maximum capacity of the resource type.
+
+    Methods
+    -------
+    __init__(name: str, description: str, capacity: int) -> None:
+        Initializes a new instance of the ResourceType class.
+    __str__() -> str:
+        Returns a string representation of the ResourceType instance.
+    """
 
     GHZ = "GHZ"
     LINEAR = "LINEAR"
     NONE = None
 
     def __str__(self) -> str:
-        """Return the name of the resource type."""
+        """
+        Returns the name of the resource type.
+
+        Returns
+        -------
+        str
+            The name of the resource type.
+        """
         return self.name
 
 
 @dataclasses.dataclass
 class ResourceGraph:
-    """Resource graph state object.
+    """
+    Resource graph state object.
 
     Parameters
     ----------
-    cltype : :class:`ResourceType` object
+    cltype : ResourceType
         Type of the cluster.
-    graph : :class:`~graphix.graphsim.GraphState` object
+    graph : graphix.graphsim.GraphState
         Graph state of the cluster.
     """
 
@@ -41,7 +67,23 @@ class ResourceGraph:
     graph: GraphState
 
     def __eq__(self, other: object) -> bool:
-        """Return `True` if two resource graphs are equal, `False` otherwise."""
+        """
+        Determine if two resource graphs are equal.
+
+        This method checks if the current resource graph is structurally
+        and functionally identical to another resource graph.
+
+        Parameters
+        ----------
+        other : object
+            The object to compare against. This is typically another instance
+            of `ResourceGraph`.
+
+        Returns
+        -------
+        bool
+            `True` if the two resource graphs are equal, `False` otherwise.
+        """
         if not isinstance(other, ResourceGraph):
             raise TypeError("cannot compare ResourceGraph with other object")
 
@@ -53,27 +95,29 @@ def get_fusion_network_from_graph(
     max_ghz: float = np.inf,
     max_lin: float = np.inf,
 ) -> list[ResourceGraph]:
-    """Extract GHZ and linear cluster graph state decomposition of desired resource state :class:`~graphix.graphsim.GraphState`.
+    """
+    Extract GHZ and linear cluster graph state decomposition of the desired resource state :class:`~graphix.graphsim.GraphState`.
 
-    Extraction algorithm is based on [1].
+    The extraction algorithm is based on the work by Zilk et al. (2022) [1].
 
-    [1] Zilk et al., A compiler for universal photonic quantum computers, 2022 `arXiv:2210.09251 <https://arxiv.org/abs/2210.09251>`_
+    References
+    ----------
+    [1] Zilk et al., A compiler for universal photonic quantum computers, 2022.
+        `arXiv:2210.09251 <https://arxiv.org/abs/2210.09251>`_
 
     Parameters
     ----------
-    graph : :class:`~graphix.graphsim.GraphState` object
-        Graph state.
-    phasedict : dict
-        Dictionary of phases for each node.
-    max_ghz:
-        Maximum size of ghz clusters
-    max_lin:
-        Maximum size of linear clusters
+    graph : :class:`~graphix.graphsim.GraphState`
+        The graph state to be decomposed.
+    max_ghz : float, optional
+        Maximum size of GHZ clusters (default is np.inf).
+    max_lin : float, optional
+        Maximum size of linear clusters (default is np.inf).
 
     Returns
     -------
-    list
-        List of :class:`ResourceGraph` objects.
+    list[ResourceGraph]
+        A list of :class:`ResourceGraph` objects representing the decomposed clusters.
     """
     adjdict = {k: dict(copy.deepcopy(v)) for k, v in graph.adjacency()}
 
@@ -139,19 +183,20 @@ def get_fusion_network_from_graph(
 
 
 def create_resource_graph(node_ids: list[int], root: int | None = None) -> ResourceGraph:
-    """Create a resource graph state (GHZ or linear) from node ids.
+    """
+    Create a resource graph state (GHZ or linear) from node ids.
 
     Parameters
     ----------
-    node_ids : list
+    node_ids : list[int]
         List of node ids.
-    root : int
-        Root of the ghz cluster. If None, it's a linear cluster.
+    root : int, optional
+        Root of the GHZ cluster. If None, a linear cluster is created. Defaults to None.
 
     Returns
     -------
-    :class:`ResourceGraph` object
-        `ResourceGraph` object.
+    ResourceGraph
+        A `ResourceGraph` object representing the constructed resource graph.
     """
     cluster_type = None
     edges = []
@@ -168,22 +213,24 @@ def create_resource_graph(node_ids: list[int], root: int | None = None) -> Resou
 
 
 def get_fusion_nodes(c1: ResourceGraph, c2: ResourceGraph) -> list[int]:
-    """Get the nodes that are fused between two resource states. Currently, we consider only type-I fusion.
+    """
+    Get the nodes that are fused between two resource states. Currently, we consider only type-I fusion.
 
-    See [2] for the definition of fusion operation.
-
-    [2] Daniel E. Browne and Terry Rudolph. Resource-efficient linear optical quantum computation. Physical Review Letters, 95(1):010501, 2005.
+    References
+    ----------
+    [1] Daniel E. Browne and Terry Rudolph. Resource-efficient linear optical quantum computation.
+        Physical Review Letters, 95(1):010501, 2005.
 
     Parameters
     ----------
-    c1 : :class:`ResourceGraph` object
+    c1 : ResourceGraph
         First resource state to be fused.
-    c2 : :class:`ResourceGraph` object
+    c2 : ResourceGraph
         Second resource state to be fused.
 
     Returns
     -------
-    list
+    list[int]
         List of nodes that are fused between the two clusters.
     """
     if not isinstance(c1, ResourceGraph) or not isinstance(c2, ResourceGraph):

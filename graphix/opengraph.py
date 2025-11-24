@@ -1,4 +1,22 @@
-"""Provides a class for open graphs."""
+"""
+Provides a class for creating and manipulating open graphs.
+
+An open graph is a data structure that allows for the representation
+of networks, where nodes can be added, removed, or modified, and
+edges can connect any pair of nodes.
+
+Attributes
+----------
+None
+
+Methods
+-------
+- add_node(node): Add a node to the graph.
+- remove_node(node): Remove a node from the graph.
+- add_edge(node1, node2): Add an edge between two nodes.
+- remove_edge(node1, node2): Remove the edge between two nodes.
+- get_neighbors(node): Retrieve a list of neighbors for a given node.
+"""
 
 from __future__ import annotations
 
@@ -18,18 +36,25 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class OpenGraph:
-    """Open graph contains the graph, measurement, and input and output nodes.
+    """
+    OpenGraph contains the graph, measurement, and input and output nodes.
 
     This is the graph we wish to implement deterministically.
 
-    :param inside: the underlying :class:`networkx.Graph` state
-    :param measurements: a dictionary whose key is the ID of a node and the
-        value is the measurement at that node
-    :param inputs: an ordered list of node IDs that are inputs to the graph
-    :param outputs: an ordered list of node IDs that are outputs of the graph
+    Parameters
+    ----------
+    inside : networkx.Graph
+        The underlying graph state.
+    measurements : dict
+        A dictionary whose keys are the IDs of nodes, and the values are
+        the measurements at those nodes.
+    inputs : list of int
+        An ordered list of node IDs that are inputs to the graph.
+    outputs : list of int
+        An ordered list of node IDs that are outputs of the graph.
 
-    Example
-    -------
+    Examples
+    --------
     >>> import networkx as nx
     >>> from graphix.fundamentals import Plane
     >>> from graphix.opengraph import OpenGraph, Measurement
@@ -48,7 +73,23 @@ class OpenGraph:
     outputs: list[int]  # Outputs are ordered
 
     def __post_init__(self) -> None:
-        """Validate the open graph."""
+        """
+        Validate the open graph.
+
+        This method is called automatically after the object has been initialized.
+        It checks the integrity and correctness of the Open Graph properties to ensure
+        that the data conforms to the Open Graph protocol.
+
+        Raises
+        ------
+        ValueError
+            If any required fields are missing or if the data is invalid.
+
+        Notes
+        -----
+        This method ensures that the Open Graph metadata is correctly set up
+        before it is used.
+        """
         if not all(node in self.inside.nodes for node in self.measurements):
             raise ValueError("All measured nodes must be part of the graph's nodes.")
         if not all(node in self.inside.nodes for node in self.inputs):
@@ -63,13 +104,30 @@ class OpenGraph:
             raise ValueError("Output nodes contain duplicates.")
 
     def isclose(self, other: OpenGraph, rel_tol: float = 1e-09, abs_tol: float = 0.0) -> bool:
-        """Return `True` if two open graphs implement approximately the same unitary operator.
+        """
+        Determine if two open graphs implement approximately the same unitary operator.
 
-        Ensures the structure of the graphs are the same and all
-        measurement angles are sufficiently close.
+        This function checks if the structure of the graphs is the same and if all
+        measurement angles are sufficiently close, within the specified relative and
+        absolute tolerances. Note that this method does not verify if the graphs are
+        equal up to an isomorphism.
 
-        This doesn't check they are equal up to an isomorphism.
+        Parameters
+        ----------
+        other : OpenGraph
+            The other open graph to compare against.
+        rel_tol : float, optional
+            The relative tolerance, which determines how close the values
+            need to be relative to the size of the values (default is 1e-09).
+        abs_tol : float, optional
+            The absolute tolerance, which specifies the minimum absolute difference
+            needed to consider the values as close (default is 0.0).
 
+        Returns
+        -------
+        bool
+            Returns `True` if the two open graphs are approximately equal,
+            `False` otherwise.
         """
         if not nx.utils.graphs_equal(self.inside, other.inside):
             return False
@@ -87,7 +145,24 @@ class OpenGraph:
 
     @staticmethod
     def from_pattern(pattern: Pattern) -> OpenGraph:
-        """Initialise an `OpenGraph` object based on the resource-state graph associated with the measurement pattern."""
+        """
+        Construct an `OpenGraph` object based on the resource-state graph associated with a given measurement pattern.
+
+        Parameters
+        ----------
+        pattern : Pattern
+            The measurement pattern used to initialize the `OpenGraph`.
+
+        Returns
+        -------
+        OpenGraph
+            An instance of the `OpenGraph` initialized according to the specified measurement pattern.
+
+        Examples
+        --------
+        >>> pattern = Pattern(...)  # create an instance of Pattern
+        >>> graph = OpenGraph.from_pattern(pattern)
+        """
         graph = pattern.extract_graph()
 
         inputs = pattern.input_nodes
@@ -100,10 +175,18 @@ class OpenGraph:
         return OpenGraph(graph, meas, inputs, outputs)
 
     def to_pattern(self) -> Pattern:
-        """Convert the `OpenGraph` into a `Pattern`.
+        """
+        Convert the `OpenGraph` into a `Pattern`.
 
-        Will raise an exception if the open graph does not have flow, gflow, or
-        Pauli flow.
+        This method converts the current instance of the `OpenGraph` into a `Pattern`.
+
+        Raises
+        ------
+        Exception
+            If the open graph does not have flow, gflow, or Pauli flow.
+
+        Notes
+        -----
         The pattern will be generated using maximally-delayed flow.
         """
         g = self.inside.copy()
@@ -117,36 +200,38 @@ class OpenGraph:
         return graphix.generator.generate_from_graph(g, angles, inputs, outputs, planes)
 
     def compose(self, other: OpenGraph, mapping: Mapping[int, int]) -> tuple[OpenGraph, dict[int, int]]:
-        r"""Compose two open graphs by merging subsets of nodes from `self` and `other`, and relabeling the nodes of `other` that were not merged.
+        """
+        Compose two open graphs by merging subsets of nodes from `self` and `other`, and relabeling the nodes of `other` that were not merged.
 
         Parameters
         ----------
         other : OpenGraph
             Open graph to be composed with `self`.
-        mapping: dict[int, int]
-            Partial relabelling of the nodes in `other`, with `keys` and `values` denoting the old and new node labels, respectively.
+        mapping : dict[int, int]
+            Partial relabelling of the nodes in `other`, where the keys represent the old node labels and the values represent the new node labels.
 
         Returns
         -------
-        og: OpenGraph
-            composed open graph
-        mapping_complete: dict[int, int]
-            Complete relabelling of the nodes in `other`, with `keys` and `values` denoting the old and new node label, respectively.
+        og : OpenGraph
+            Composed open graph resulting from the combination of `self` and `other`.
+        mapping_complete : dict[int, int]
+            Complete relabelling of the nodes in `other`, with keys and values indicating the old and new node labels, respectively.
 
         Notes
         -----
-        Let's denote :math:`\{G(V_1, E_1), I_1, O_1\}` the open graph `self`, :math:`\{G(V_2, E_2), I_2, O_2\}` the open graph `other`, :math:`\{G(V, E), I, O\}` the resulting open graph `og` and `{v:u}` an element of `mapping`.
+        Let :math:`\{G(V_1, E_1), I_1, O_1\}` be the open graph `self`, and :math:`\{G(V_2, E_2), I_2, O_2\}` be the open graph `other`. The resulting open graph will be denoted as :math:`\{G(V, E), I, O\}` and `{v:u}` an element of `mapping`.
 
-        We define :math:`V, U` the set of nodes in `mapping.keys()` and `mapping.values()`, and :math:`M = U \cap V_1` the set of merged nodes.
+        Define :math:`V` and :math:`U` as the sets of nodes represented by `mapping.keys()` and `mapping.values()`, respectively, and :math:`M = U \cap V_1` as the set of merged nodes.
 
-        The open graph composition requires that
+        The open graph composition requires that:
         - :math:`V \subseteq V_2`.
         - If both `v` and `u` are measured, the corresponding measurements must have the same plane and angle.
-         The returned open graph follows this convention:
+
+        The conventions for the returned open graph are as follows:
         - :math:`I = (I_1 \cup I_2) \setminus M \cup (I_1 \cap I_2 \cap M)`,
         - :math:`O = (O_1 \cup O_2) \setminus M \cup (O_1 \cap O_2 \cap M)`,
-        - If only one node of the pair `{v:u}` is measured, this measure is assigned to :math:`u \in V` in the resulting open graph.
-        - Input (and, respectively, output) nodes in the returned open graph have the order of the open graph `self` followed by those of the open graph `other`. Merged nodes are removed, except when they are input (or output) nodes in both open graphs, in which case, they appear in the order they originally had in the graph `self`.
+        - If only one node of the pair `{v:u}` is measured, the measure is assigned to :math:`u \in V` in the resulting open graph.
+        - Input (and output) nodes in the returned open graph maintain the order of open graph `self` followed by those of open graph `other`. Merged nodes are removed unless they are input (or output) nodes in both open graphs, in which case, they appear in the order they originally had in the graph `self`.
         """
         if not (mapping.keys() <= other.inside.nodes):
             raise ValueError("Keys of mapping must be correspond to nodes of other.")

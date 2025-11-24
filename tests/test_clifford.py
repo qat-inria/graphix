@@ -39,7 +39,12 @@ class TestClifford:
         assert hasattr(Clifford, "H")
 
     def test_iteration(self) -> None:
-        """Test that Clifford iteration does not take (I, X, Y, Z, S, H) into account."""
+        """
+        Test the behavior of Clifford iteration.
+
+        This test verifies that the Clifford iteration does not take the gate
+        operators: I, X, Y, Z, S, and H into account during its execution.
+        """
         assert len(Clifford) == 24
         assert len(frozenset(Clifford)) == 24
 

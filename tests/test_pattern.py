@@ -686,7 +686,25 @@ class TestPattern:
 
 
 def cp(circuit: Circuit, theta: float, control: int, target: int) -> None:
-    """Controlled rotation gate, decomposed."""  # noqa: D401
+    """
+    Controlled rotation gate, decomposed.
+
+    Parameters
+    ----------
+    circuit : Circuit
+        The quantum circuit to which the controlled rotation gate will be applied.
+    theta : float
+        The angle of rotation for the controlled rotation gate, specified in radians.
+    control : int
+        The index of the control qubit in the circuit.
+    target : int
+        The index of the target qubit in the circuit.
+
+    Returns
+    -------
+    None
+        This function modifies the circuit in place to include the controlled rotation gate.
+    """
     circuit.rz(control, theta / 2)
     circuit.rz(target, theta / 2)
     circuit.cnot(control, target)
@@ -695,7 +713,24 @@ def cp(circuit: Circuit, theta: float, control: int, target: int) -> None:
 
 
 def swap(circuit: Circuit, a: int, b: int) -> None:
-    """Swap gate, decomposed."""
+    """
+    Swap gate, decomposed.
+
+    Parameters
+    ----------
+    circuit : Circuit
+        The quantum circuit where the swap operation will be applied.
+    a : int
+        The index of the first qubit to swap.
+    b : int
+        The index of the second qubit to swap.
+
+    Returns
+    -------
+    None
+        This function modifies the circuit in place to include the swap operation
+        between the specified qubits.
+    """
     circuit.cnot(a, b)
     circuit.cnot(b, a)
     circuit.cnot(a, b)

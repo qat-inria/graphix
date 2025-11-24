@@ -1,4 +1,10 @@
-"""Noise models."""
+"""
+Noise models.
+
+This module contains implementations of various noise models used in simulations
+and analyses. Each model is designed to represent different types of noise
+characteristics that may be encountered in experimental or computational settings.
+"""
 
 from __future__ import annotations
 

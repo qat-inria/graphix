@@ -52,16 +52,20 @@ def example_gflow(rng: Generator) -> Pattern:
 
 
 def example_graph_pflow(rng: Generator) -> OpenGraph:
-    """Create a graph which has pflow but no gflow.
+    """
+    Create a graph that has power flow but no gas flow.
 
     Parameters
     ----------
-    rng : :class:`numpy.random.Generator`
-        See graphix.tests.conftest.py
+    rng : numpy.random.Generator
+        Random number generator used for creating the graph. See
+        `graphix.tests.conftest.py` for details.
 
     Returns
     -------
-    OpenGraph: :class:`graphix.opengraph.OpenGraph`
+    OpenGraph
+        An instance of `graphix.opengraph.OpenGraph` representing the
+        generated graph with power flow.
     """
     graph: nx.Graph[int] = nx.Graph(
         [(0, 2), (1, 4), (2, 3), (3, 4), (2, 5), (3, 6), (4, 7), (5, 6), (6, 7), (5, 8), (7, 9)]
