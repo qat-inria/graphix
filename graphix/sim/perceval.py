@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import perceval as pcvl
-from perceval.backends._abstract_backends import AStrongSimulationBackend  # noqa: PLC2701
+from perceval.backends._abstract_backends import ABackend, AStrongSimulationBackend  # noqa: PLC2701
 from perceval.components import Catalog
 from perceval.simulators import Simulator
 
@@ -46,7 +46,7 @@ class PercevalState:
         self.state = perceval_state
         self.source = source
         # Statevec.__init__(Statevec(nqubit=0))
-        self.sim = Simulator(AStrongSimulationBackend(pcvl.BackendFactory.get_backend("SLOS")))
+        self.sim: Simulator = Simulator(ABackend(pcvl.BackendFactory.get_backend("SLOS")))
         self.sim.set_min_detected_photons_filter(0)
         self.sim.keep_heralds(False)
 
