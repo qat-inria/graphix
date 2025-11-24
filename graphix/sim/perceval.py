@@ -13,13 +13,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import perceval as pcvl
-from perceval.backends._abstract_backends import ABackend, AStrongSimulationBackend  # noqa: PLC2701
 from perceval.components import Catalog
 from perceval.simulators import Simulator
 
 from graphix.command import Command, CommandKind
 from graphix.fundamentals import Plane
-from graphix.sim.base_backend import DenseState, DenseStateBackend, NodeIndex
+from graphix.sim.base_backend import NodeIndex
 from graphix.states import BasicStates
 
 if TYPE_CHECKING:

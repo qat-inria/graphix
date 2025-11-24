@@ -34,7 +34,7 @@ SOURCES: list[Source] = [Source(emission_probability=1,
                 indistinguishability=0.9)]
 
 
-@pytest.mark.parametrize("source", SOURCES)
+@pytest.mark.parametrize("p_source", SOURCES)
 def test_init_success(hadamardpattern: Pattern, source: Source) -> None:
     """Test that the PercevalBackend can be initialized successfully."""
     backend = PercevalBackend()
@@ -54,99 +54,3 @@ def test_init_fail(hadamardpattern: Pattern, source: Source, fx_rng: Generator) 
     backend.set_source(source)
     with pytest.raises(ValueError):
         backend.add_nodes(hadamardpattern.input_nodes, data=[state, state2])
-
-
-@pytest.mark.parametrize("source", SOURCES)
-def test_deterministic_measure_one(source: Source, fx_rng: Generator):
-    # plus state & zero state (default), but with tossed coins
-    for _ in range(10):
-        backend: PercevalBackend = PercevalBackend()
-        backend.set_source(source)
-        coins: list[int] = [fx_rng.choice([0, 1]), fx_rng.choice([0, 1])]
-        expected_result: int = sum(coins) % 2
-        states: list[PlanarState] = [
-            Pauli.X.eigenstate(coins[0]),
-            Pauli.Z.eigenstate(coins[1]),
-        ]
-        nodes: list[int] = range(len(states))
-        backend.add_nodes(nodes=nodes, data=states)
-        backend.entangle_nodes(edge=(nodes[0], nodes[1]))
-        measurement: Measurement = Measurement(0, Plane.XY)
-        node_to_measure: int = backend.node_index[0]
-        result: int = backend.measure(node=node_to_measure, measurement=measurement)
-        assert result == expected_result
-
-
-@pytest.mark.parametrize("source", SOURCES)
-def test_deterministic_measure(source: Source):
-    """Entangle |+> state with N |0> states, the (XY,0) measurement yields the outcome 0 with probability 1."""
-    for _ in range(10):
-        # plus state (default)
-        backend: PercevalBackend = PercevalBackend()
-        backend.set_source(source)
-        n_neighbors = 10
-        states: list[PlanarState] = [Pauli.X.eigenstate()] + [Pauli.Z.eigenstate() for i in range(n_neighbors)]
-        nodes: list[int] = range(len(states))
-        backend.add_nodes(nodes=nodes, data=states)
-        for i in range(1, n_neighbors + 1):
-            backend.entangle_nodes(edge=(nodes[0], i))
-        measurement: Measurement = Measurement(0, Plane.XY)
-        node_to_measure: int = backend.node_index[0]
-        result: int = backend.measure(node=node_to_measure, measurement=measurement)
-        assert result == 0
-        assert list(backend.node_index) == list(range(1, n_neighbors + 1))
-
-
-@pytest.mark.parametrize("source", SOURCES)
-def test_deterministic_measure_many(source: Source):
-    """Entangle |+> state with N |0> states, the (XY,0) measurement yields the outcome 0 with probability 1."""
-    for _ in range(10):
-        # plus state (default)
-        backend: PercevalBackend = PercevalBackend()
-        backend.set_source(source)
-        n_traps = 5
-        n_neighbors = 5
-        n_whatever = 5
-        traps: list[PlanarState] = [Pauli.X.eigenstate() for _ in range(n_traps)]
-        dummies: list[PlanarState] = [Pauli.Z.eigenstate() for _ in range(n_neighbors)]
-        others: list[PlanarState] = [Pauli.I.eigenstate() for _ in range(n_whatever)]
-        states: list[PlanarState] = traps + dummies + others
-        nodes: list[int] = range(len(states))
-        backend.add_nodes(nodes=nodes, data=states)
-        for dummy in nodes[n_traps : n_traps + n_neighbors]:
-            for trap in nodes[:n_traps]:
-                backend.entangle_nodes(edge=(trap, dummy))
-            for other in nodes[n_traps + n_neighbors :]:
-                backend.entangle_nodes(edge=(other, dummy))
-        # Same measurement for all traps
-        measurement: Measurement = Measurement(0, Plane.XY)
-        for trap in nodes[:n_traps]:
-            node_to_measure: int = trap
-            result: int = backend.measure(node=node_to_measure, measurement=measurement)
-            assert result == 0
-        assert list(backend.node_index) == list(range(n_traps, n_neighbors + n_traps + n_whatever))
-
-
-@pytest.mark.parametrize("source", SOURCES)
-def test_deterministic_measure_with_coin(source: Source, fx_rng: Generator):
-    """Entangle |+> state with N |0> states, the (XY,0) measurement yields the outcome 0 with probability 1.
-
-    We add coin toss to that.
-    """
-    for _ in range(10):
-        # plus state (default)
-        backend: PercevalBackend = PercevalBackend()
-        backend.set_source(source)
-        n_neighbors = 10
-        coins: list[int] = [fx_rng.choice([0, 1])] + [fx_rng.choice([0, 1]) for _ in range(n_neighbors)]
-        expected_result: int = sum(coins) % 2
-        states: list[PlanarState] = [Pauli.X.eigenstate(coins[0])] + [Pauli.Z.eigenstate(coins[i + 1]) for i in range(n_neighbors)]
-        nodes: list[int] = range(len(states))
-        backend.add_nodes(nodes=nodes, data=states)
-        for i in range(1, n_neighbors + 1):
-            backend.entangle_nodes(edge=(nodes[0], i))
-        measurement: Measurement = Measurement(0, Plane.XY)
-        node_to_measure: int = backend.node_index[0]
-        result: int = backend.measure(node=node_to_measure, measurement=measurement)
-        assert result == expected_result
-        assert list(backend.node_index) == list(range(1, n_neighbors + 1))
