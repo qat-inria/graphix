@@ -1,4 +1,11 @@
-"""Optimization procedures for patterns."""
+"""
+Optimization procedures for patterns.
+
+This module provides various algorithms and methods for optimizing patterns
+in different contexts. The procedures can be applied to enhance
+performance and efficiency in pattern recognition, classification, or any
+other relevant applications.
+"""
 
 from __future__ import annotations
 
@@ -21,19 +28,19 @@ if TYPE_CHECKING:
 
 
 def standardize(pattern: Pattern) -> Pattern:
-    """Return a standardized form to the given pattern.
+    """
+    Return a standardized form of the given pattern.
 
-    A standardized form is an equivalent pattern where the commands
+    A standardized form is an equivalent pattern in which the commands
     appear in the following order: `N`, `E`, `M`, `Z`, `X`, `C`.
 
-    Note that a standardized form does not always exist in presence of
+    Note that a standardized form does not always exist in the presence of
     `C` commands. For instance, there is no standardized form for the
     following pattern (written in the right-to-left convention):
     `E(0, 1) C(0, H) N(1) N(0)`.
 
-    The function raises `NotImplementedError` if there is no
-    standardized form. This behavior can change in the future.
-
+    The function raises `NotImplementedError` if a standardized form
+    cannot be produced. This behavior may change in the future.
 
     Parameters
     ----------
@@ -49,27 +56,29 @@ def standardize(pattern: Pattern) -> Pattern:
 
 
 class StandardizedPattern:
-    """Pattern in standardized form.
+    """
+    Pattern in standardized form.
 
-    Use the method :meth:`to_pattern()` to get the standardized pattern.
+    This class provides a standardized representation of a given pattern.
+    Use the method :meth:`to_pattern()` to retrieve the standardized pattern.
     Note that the attribute :attr:`pattern` contains the original pattern.
 
     Attributes
     ----------
-    pattern: Pattern
+    pattern : Pattern
         The original pattern.
-    n_list: list[command.N]
-        The N commands.
-    e_set: set[frozenset[int]]
-        Set of edges.
-    m_list: list[command.M]
-        The M commands.
-    c_dict: dict[int, Clifford]
-        Mapping associating Clifford corrections to some nodes.
-    z_dict: dict[int, set[Node]]
-        Mapping associating Z-domains to some nodes.
-    x_dict: dict[int, set[Node]]
-        Mapping associating X-domains to some nodes.
+    n_list : list of command.N
+        The list of N commands.
+    e_set : set of frozenset of int
+        A set of edges in the pattern.
+    m_list : list of command.M
+        The list of M commands.
+    c_dict : dict of int to Clifford
+        Mapping associating Clifford corrections to specific nodes.
+    z_dict : dict of int to set of Node
+        Mapping associating Z-domains to specific nodes.
+    x_dict : dict of int to set of Node
+        Mapping associating X-domains to specific nodes.
     """
 
     pattern: Pattern
@@ -81,7 +90,18 @@ class StandardizedPattern:
     x_dict: dict[int, set[Node]]
 
     def __init__(self, pattern: Pattern) -> None:
-        """Compute the standardized form of the given pattern."""
+        """
+        Initialize the StandardizedPattern with a given pattern.
+
+        Parameters
+        ----------
+        pattern : Pattern
+            The pattern to be standardized.
+
+        Notes
+        -----
+        This method computes the standardized form of the provided pattern upon initialization.
+        """
         s_domain: set[Node]
         t_domain: set[Node]
         s_domain_opt: set[Node] | None
@@ -145,11 +165,13 @@ class StandardizedPattern:
                 self.c_dict[cmd.node] = cmd.clifford @ self.c_dict.get(cmd.node, Clifford.I)
 
     def extract_graph(self) -> nx.Graph[int]:
-        """Return the graph state from the command sequence, extracted from 'N' and 'E' commands.
+        """
+        Return the graph state from the command sequence, extracted from 'N' and 'E' commands.
 
         Returns
         -------
-        graph_state: nx.Graph
+        graph_state : nx.Graph[int]
+            The graph representing the state based on the 'N' (node) and 'E' (edge) commands.
         """
         graph: nx.Graph[int] = nx.Graph()
         graph.add_nodes_from(self.pattern.input_nodes)
@@ -160,7 +182,14 @@ class StandardizedPattern:
         return graph
 
     def to_pattern(self) -> Pattern:
-        """Return the standardized pattern."""
+        """
+        Return the standardized pattern.
+
+        Returns
+        -------
+        Pattern
+            The standardized representation of the pattern.
+        """
         pattern = graphix.pattern.Pattern(input_nodes=self.pattern.input_nodes)
         pattern.results = self.pattern.results
         pattern.extend(
@@ -176,15 +205,16 @@ class StandardizedPattern:
 
 
 def _add_correction_domain(domain_dict: dict[Node, set[Node]], node: Node, domain: set[Node]) -> None:
-    """Merge a correction domain into ``domain_dict`` for ``node``.
+    """
+    Merge a correction domain into `domain_dict` for `node`.
 
     Parameters
     ----------
-    domain_dict : dict[int, Command]
-        Mapping from node index to accumulated domain.
-    node : int
+    domain_dict : dict[Node, set[Node]]
+        Mapping from nodes to their accumulated domains.
+    node : Node
         Target node whose domain should be updated.
-    domain : set[int]
+    domain : set[Node]
         Domain to merge with the existing one.
     """
     if previous_domain := domain_dict.get(node):
@@ -194,18 +224,24 @@ def _add_correction_domain(domain_dict: dict[Node, set[Node]], node: Node, domai
 
 
 def _commute_clifford(clifford_gate: Clifford, c_dict: dict[int, Clifford], i: int, j: int) -> None:
-    """Commute a Clifford with an entanglement command.
+    """
+    Commute a Clifford gate with an entanglement command.
 
     Parameters
     ----------
     clifford_gate : Clifford
-        Clifford gate before the entanglement command
+        The Clifford gate to be commuted with the entanglement command.
     c_dict : dict[int, Clifford]
-        Mapping from the node index to accumulated Clifford commands.
+        A mapping from node indices to accumulated Clifford commands.
     i : int
-        First node of the entanglement command where the Clifford is applied.
+        The index of the first node of the entanglement command where the Clifford is applied.
     j : int
-        Second node of the entanglement command where the Clifford is applied.
+        The index of the second node of the entanglement command where the Clifford is applied.
+
+    Returns
+    -------
+    None
+        This function modifies `c_dict` in place, adding the commuted Clifford commands.
     """
     if clifford_gate in {Clifford.I, Clifford.Z, Clifford.S, Clifford.SDG}:
         # Clifford gate commutes with the entanglement command.
@@ -231,7 +267,24 @@ def _incorporate_pauli_results_in_domain(
 
 
 def incorporate_pauli_results(pattern: Pattern) -> Pattern:
-    """Return an equivalent pattern where results from Pauli presimulation are integrated in corrections."""
+    """
+    Incorporate results from Pauli presimulation into an equivalent pattern.
+
+    This function takes a Pattern object and integrates the results from
+    Pauli presimulation into it, yielding a corrected version of the pattern.
+
+    Parameters
+    ----------
+    pattern : Pattern
+        The input pattern containing the presimulation results that need to be
+        incorporated.
+
+    Returns
+    -------
+    Pattern
+        A new Pattern object that represents the equivalent pattern with
+        integrated corrections from the Pauli presimulation results.
+    """
     result = graphix.pattern.Pattern(input_nodes=pattern.input_nodes)
     for cmd in pattern:
         if cmd.kind == CommandKind.M:

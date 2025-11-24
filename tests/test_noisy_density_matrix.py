@@ -19,7 +19,32 @@ if TYPE_CHECKING:
 
 
 class TestNoisyDensityMatrixBackend:
-    """Test for Noisy DensityMatrixBackend simultation."""
+    """
+    Test for the Noisy DensityMatrixBackend simulation.
+
+    This class contains unit tests for the NoisyDensityMatrixBackend,
+    focusing on verifying its behavior under various conditions and
+    ensuring that it accurately simulates noise in quantum density matrices.
+
+    Attributes
+    ----------
+    backend : NoisyDensityMatrixBackend
+        An instance of the NoisyDensityMatrixBackend to be tested.
+
+    Methods
+    -------
+    setUp()
+        Initializes the NoisyDensityMatrixBackend instance before each test.
+
+    test_simulation_steps()
+        Tests the correct number of simulation steps.
+
+    test_noise_effects()
+        Verifies that noise is properly applied to the density matrix.
+
+    test_measurement_outcomes()
+        Checks that measurement outcomes match expected results under noise.
+    """
 
     @staticmethod
     def rz_exact_res(alpha: float) -> npt.NDArray[np.float64]:

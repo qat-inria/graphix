@@ -1,4 +1,11 @@
-"""Quantum states and operators."""
+"""
+Quantum states and operators.
+
+This module provides functionalities related to quantum mechanics,
+specifically focusing on the representation and manipulation of quantum
+states and operators. It includes definitions, operations, and common
+mathematical techniques used in quantum theory.
+"""
 
 from __future__ import annotations
 
@@ -19,7 +26,30 @@ if TYPE_CHECKING:
 
 
 class Ops:
-    """Basic single- and two-qubits operators."""
+    """
+    Basic single- and two-qubit operators.
+
+    This class provides various methods to create and manipulate
+    single and two-qubit operators commonly used in quantum computing.
+
+    Attributes
+    ----------
+    None
+
+    Methods
+    -------
+    single_qubit_operator(name):
+        Returns a single-qubit operator based on the specified name.
+
+    two_qubit_operator(name):
+        Returns a two-qubit operator based on the specified name.
+
+    apply_operator(state, operator):
+        Applies the given operator to the specified quantum state.
+
+    example_method():
+        An example method to demonstrate functionality.
+    """
 
     I: ClassVar[npt.NDArray[np.complex128]] = utils.lock(np.asarray([[1, 0], [0, 1]]))
     X: ClassVar[npt.NDArray[np.complex128]] = utils.lock(np.asarray([[0, 1], [1, 0]]))
@@ -101,16 +131,18 @@ class Ops:
 
     @staticmethod
     def rx(theta: ExpressionOrFloat) -> npt.NDArray[np.complex128] | npt.NDArray[np.object_]:
-        """X rotation.
+        """
+        X rotation operator.
 
         Parameters
         ----------
         theta : float
-            rotation angle in radian
+            Rotation angle in radians.
 
         Returns
         -------
-        operator : 2*2 np.asarray
+        operator : ndarray, shape (2, 2)
+            The 2x2 X rotation operator as a NumPy array.
         """
         cos, sin = cos_sin(theta / 2)
         return Ops._cast_array(
@@ -128,16 +160,18 @@ class Ops:
 
     @staticmethod
     def ry(theta: ExpressionOrFloat) -> npt.NDArray[np.complex128] | npt.NDArray[np.object_]:
-        """Y rotation.
+        """
+        Y rotation operator.
 
         Parameters
         ----------
         theta : float
-            rotation angle in radian
+            Rotation angle in radians.
 
         Returns
         -------
-        operator : 2*2 np.asarray
+        operator : numpy.ndarray, shape (2, 2)
+            The resulting Y rotation operator as a 2x2 numpy array.
         """
         cos, sin = cos_sin(theta / 2)
         return Ops._cast_array([[cos, -sin], [sin, cos]], theta)
@@ -152,16 +186,19 @@ class Ops:
 
     @staticmethod
     def rz(theta: ExpressionOrFloat) -> npt.NDArray[np.complex128] | npt.NDArray[np.object_]:
-        """Z rotation.
+        """
+        Z rotation operator.
 
         Parameters
         ----------
         theta : float
-            rotation angle in radian
+            Rotation angle in radians.
 
         Returns
         -------
-        operator : 2*2 np.asarray
+        operator : ndarray
+            A 2x2 numpy array representing the Z rotation operator, which is of type
+            complex128 or object.
         """
         return Ops._cast_array([[exp(-1j * theta / 2), 0], [0, exp(1j * theta / 2)]], theta)
 
@@ -175,32 +212,40 @@ class Ops:
 
     @staticmethod
     def rzz(theta: ExpressionOrFloat) -> npt.NDArray[np.complex128] | npt.NDArray[np.object_]:
-        """zz-rotation.
+        """
+        zz-rotation operator.
 
-        Equivalent to the sequence
-        cnot(control, target),
-        rz(target, angle),
-        cnot(control, target)
+        The zz-rotation operator is equivalent to the sequence of operations:
+        1. CNOT(control, target)
+        2. RZ(target, angle)
+        3. CNOT(control, target)
 
         Parameters
         ----------
-        theta : float
-            rotation angle in radian
+        theta : ExpressionOrFloat
+            Rotation angle in radians.
 
         Returns
         -------
-        operator : 4*4 np.asarray
+        operator : npt.NDArray[np.complex128] | npt.NDArray[np.object_]
+            A 4x4 numpy array representing the zz-rotation operator.
         """
         return Ops._cast_array(Ops.CNOT @ np.kron(Ops.I, Ops.rz(theta)) @ Ops.CNOT, theta)
 
     @staticmethod
     def build_tensor_pauli_ops(n_qubits: int) -> npt.NDArray[np.complex128]:
-        r"""Build all the 4^n tensor Pauli operators {I, X, Y, Z}^{\otimes n}.
+        """
+        Build all the 4^n tensor Pauli operators {I, X, Y, Z}^{\otimes n}.
 
-        :param n_qubits: number of copies (qubits) to consider
-        :type n_qubits: int
-        :return: the array of the 4^n operators of shape (2^n, 2^n)
-        :rtype: np.ndarray
+        Parameters
+        ----------
+        n_qubits : int
+            The number of copies (qubits) to consider.
+
+        Returns
+        -------
+        np.ndarray
+            An array of shape (2^n, 2^n) containing the 4^n operators.
         """
         if isinstance(n_qubits, int):
             if not n_qubits >= 1:

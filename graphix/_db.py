@@ -1,4 +1,10 @@
-"""Database module for Graphix."""
+"""
+Database module for Graphix.
+
+This module provides functionality to interact with the Graphix database,
+enabling operations such as data retrieval, insertion, updating, and deletion
+of records within the Graphix application.
+"""
 
 from __future__ import annotations
 
@@ -126,14 +132,55 @@ CLIFFORD_CONJ = (0, 1, 2, 3, 5, 4, 6, 15, 12, 9, 10, 11, 8, 13, 14, 7, 20, 22, 2
 
 
 class _CM(NamedTuple):
-    """Pauli string and sign."""
+    """
+    Pauli string and sign.
+
+    Attributes
+    ----------
+    pauli_string : str
+        A string representing the Pauli operation, such as 'X', 'Y', 'Z', or 'I'.
+    sign : int
+        The sign associated with the Pauli string, typically +1 or -1.
+
+    Methods
+    -------
+    __init__(pauli_string: str, sign: int)
+        Initializes the Pauli string and its sign.
+
+    __repr__()
+        Returns a string representation of the Pauli string with its sign.
+
+    __eq__(other)
+        Checks if two _CM instances are equal based on their Pauli strings and signs.
+    """
 
     pstr: IXYZ
     sign: Sign
 
 
 class _CMTuple(NamedTuple):
-    """Container for three Pauli strings along X, Y and Z axes."""
+    """
+    Container for three Pauli strings along the X, Y, and Z axes.
+
+    Attributes
+    ----------
+    x : str
+        The Pauli string along the X axis.
+    y : str
+        The Pauli string along the Y axis.
+    z : str
+        The Pauli string along the Z axis.
+
+    Examples
+    --------
+    >>> pauli_tuple = _CMTuple('X', 'Y', 'Z')
+    >>> pauli_tuple.x
+    'X'
+    >>> pauli_tuple.y
+    'Y'
+    >>> pauli_tuple.z
+    'Z'
+    """
 
     x: _CM
     y: _CM

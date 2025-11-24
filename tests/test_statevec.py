@@ -15,7 +15,21 @@ if TYPE_CHECKING:
 
 
 class TestStatevec:
-    """Test for Statevec class. Particularly new constructor."""
+    """
+    Test for the Statevec class.
+
+    This class contains unit tests for verifying the functionality
+    of the Statevec class, with a particular focus on its constructor.
+
+    Methods
+    -------
+    test_constructor_valid_inputs:
+        Tests the constructor with valid input values.
+
+    test_constructor_invalid_inputs:
+        Tests the constructor with invalid input values to ensure
+        it raises appropriate exceptions.
+    """
 
     # test injitializing one qubit in plus state
     def test_default_success(self) -> None:

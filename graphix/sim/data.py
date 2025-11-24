@@ -1,10 +1,11 @@
-"""Type `Data` for initializing nodes in backends.
+"""
+Type `Data` for initializing nodes in backends.
 
-The type `Data` is declared here to support type-checking
-`base_backend`, but its definition requires importing the `statevec`
-and `density_matrix` modules, both of which import `base_backend`. To
-break this import cycle, `data` is only imported within the
-type-checking block of `base_backend`.
+This module declares the type `Data` to support type-checking in the
+`base_backend`. The definition of `Data` necessitates importing the
+`statevec` and `density_matrix` modules, both of which have dependencies
+on `base_backend`. To avoid circular imports, the `data` module is
+imported solely within the type-checking block of `base_backend`.
 """
 
 from __future__ import annotations

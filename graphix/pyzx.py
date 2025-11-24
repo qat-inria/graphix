@@ -1,7 +1,10 @@
-"""Functionality for converting between OpenGraphs and :mod:`pyzx`.
+"""
+Functionality for converting between OpenGraphs and :mod:`pyzx`.
 
-These functions are held in their own file rather than including them in the
-OpenGraph class because we want :mod:`pyzx` to be an optional dependency.
+This module provides functions for converting OpenGraphs to and from the
+:mod:`pyzx` library. These functions are implemented in a separate file to
+ensure that :mod:`pyzx` remains an optional dependency, allowing for
+greater flexibility in environments where it may not be installed.
 """
 
 from __future__ import annotations
@@ -32,16 +35,28 @@ def _fraction_of_angle(angle: ExpressionOrFloat) -> Fraction:
 
 
 def to_pyzx_graph(og: OpenGraph) -> BaseGraph[int, tuple[int, int]]:
-    """Return a :mod:`pyzx` graph corresponding to the open graph.
+    """
+    Convert an OpenGraph to a :mod:`pyzx` graph representation.
 
-    Example
+    Parameters
+    ----------
+    og : OpenGraph
+        The open graph to be converted into a :mod:`pyzx` graph.
+
+    Returns
     -------
+    BaseGraph[int, tuple[int, int]]
+        A :mod:`pyzx` graph corresponding to the given open graph.
+
+    Examples
+    --------
     >>> import networkx as nx
     >>> from graphix.pyzx import to_pyzx_graph
     >>> g = nx.Graph([(0, 1), (1, 2)])
     >>> inputs = [0]
     >>> outputs = [2]
-    >>> measurements = {0: Measurement(0, Plane.XY), 1: Measurement(1, Plane.YZ)}
+    >>> measurements = {0: Measurement(0, Plane.XY),
+    ...                1: Measurement(1, Plane.YZ)}
     >>> og = OpenGraph(g, measurements, inputs, outputs)
     >>> reconstructed_pyzx_graph = to_pyzx_graph(og)
     """
@@ -115,16 +130,29 @@ def _checked_float(x: FractionLike) -> float:
 
 
 def from_pyzx_graph(g: BaseGraph[int, tuple[int, int]]) -> OpenGraph:
-    """Construct an :class:`OpenGraph` from a :mod:`pyzx` graph.
+    """
+    Construct an :class:`OpenGraph` from a :mod:`pyzx` graph.
 
     This method may add additional nodes to the graph so that it adheres
-    with the definition of an OpenGraph. For instance, if the final node on
+    to the definition of an OpenGraph. For instance, if the final node on
     a qubit is measured, it will add two nodes behind it so that no output
-    nodes are measured to satisfy the requirements of an open graph.
-        .. warning::
-            works with `pyzx==0.8.0` (see `requirements-dev.txt`). Other versions may not be compatible due to breaking changes in `pyzx`
-    Example
+    nodes are measured, thereby satisfying the requirements of an OpenGraph.
+
+    .. warning::
+        Works with `pyzx==0.8.0` (see `requirements-dev.txt`). Other versions may not be compatible due to breaking changes in `pyzx`.
+
+    Parameters
+    ----------
+    g : BaseGraph[int, tuple[int, int]]
+        The input graph of type `BaseGraph` consisting of integer nodes and edges represented by tuples of integers.
+
+    Returns
     -------
+    OpenGraph
+        An instance of `OpenGraph` constructed from the input `pyzx` graph.
+
+    Examples
+    --------
     >>> import pyzx as zx
     >>> from graphix.pyzx import from_pyzx_graph
     >>> circ = zx.qasm("qreg q[2]; h q[1]; cx q[0], q[1]; h q[1];")

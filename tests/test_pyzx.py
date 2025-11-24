@@ -47,7 +47,25 @@ def test_graph_equality() -> None:
 
 
 def assert_reconstructed_pyzx_graph_equal(g: BaseGraph[int, tuple[int, int]]) -> None:
-    """Convert a graph to and from an Open graph and then checks the resulting pyzx graph is equal to the original."""
+    """
+    Convert a graph to and from an Open graph and then check if the resulting
+    pyzx graph is equal to the original graph.
+
+    Parameters
+    ----------
+    g : BaseGraph[int, tuple[int, int]]
+        The original graph to be converted and checked.
+
+    Raises
+    ------
+    AssertionError
+        If the reconstructed pyzx graph does not equal the original graph.
+
+    Notes
+    -----
+    The function assumes that the graph `g` is a valid instance of `BaseGraph`
+    and uses internal methods to perform the conversion and comparison.
+    """
     zx.simplify.to_graph_like(g)
 
     g_copy = deepcopy(g)

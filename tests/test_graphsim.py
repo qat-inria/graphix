@@ -35,26 +35,26 @@ def get_state(g: GraphState) -> Statevec:
 def meas_op(
     angle: float, vop: Clifford = Clifford.I, plane: Plane = Plane.XY, choice: int = 0
 ) -> npt.NDArray[np.complex128]:
-    """Return the projection operator for given measurement angle and local Clifford op (VOP).
+    """
+    Return the projection operator for a given measurement angle and local Clifford operation (VOP).
 
-    .. seealso:: :mod:`graphix.clifford`
+    Refer to :mod:`graphix.clifford` for more details.
 
     Parameters
     ----------
     angle : float
-        original measurement angle in radian
-    vop : int
-        index of local Clifford (vop), see graphq.clifford.CLIFFORD
-    plane : 'XY', 'YZ' or 'ZX'
-        measurement plane on which angle shall be defined
-    choice : 0 or 1
-        choice of measurement outcome. measured eigenvalue would be (-1)**choice.
+        Original measurement angle in radians.
+    vop : Clifford, optional
+        Local Clifford operation. Default is Clifford.I.
+    plane : Plane, optional
+        Measurement plane on which the angle is defined. Options are 'XY', 'YZ', or 'ZX'. Default is Plane.XY.
+    choice : int, optional
+        Choice of measurement outcome. The measured eigenvalue would be (-1)**choice. Default is 0.
 
     Returns
     -------
-    op : numpy array
-        projection operator
-
+    op : npt.NDArray[np.complex128]
+        Projection operator corresponding to the specified measurement parameters.
     """
     assert choice in {0, 1}
     if plane == Plane.XY:
@@ -71,7 +71,16 @@ def meas_op(
 
 class TestGraphSim:
     def test_fig2(self) -> None:
-        """Three single-qubit measurements presented in Fig.2 of M. Elliot et al (2010)."""
+        """
+        Test three single-qubit measurements.
+
+        This method verifies the results of the single-qubit measurements
+        presented in Figure 2 of M. Elliot et al. (2010).
+
+        Returns
+        -------
+        None
+        """
         nqubit = 6
         edges = [(0, 1), (1, 2), (3, 4), (4, 5), (0, 3), (1, 4), (2, 5)]
         g = GraphState(nodes=np.arange(nqubit), edges=edges)

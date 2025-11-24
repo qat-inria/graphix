@@ -43,7 +43,8 @@ class DAGTestCase(NamedTuple):
 
 
 def get_og_rndcircuit(depth: int, n_qubits: int, n_inputs: int | None = None) -> OpenGraph:
-    """Return an open graph from a random circuit.
+    """
+    Return an open graph from a random circuit.
 
     Parameters
     ----------
@@ -51,8 +52,8 @@ def get_og_rndcircuit(depth: int, n_qubits: int, n_inputs: int | None = None) ->
         Circuit depth of the random circuits for generating open graphs.
     n_qubits : int
         Number of qubits in the random circuits for generating open graphs. It controls the number of outputs.
-    n_inputs : int | None
-        Optional (default to `None`). Maximum number of inputs in the returned open graph. The returned open graph is the open graph generated from the random circuit where `n_qubits - n_inputs` nodes have been removed from the input-nodes set. This operation does not change the flow properties of the graph.
+    n_inputs : int, optional
+        Maximum number of inputs in the returned open graph. If not specified, defaults to `None`. The returned open graph is generated from the random circuit where `n_qubits - n_inputs` nodes have been removed from the input-nodes set. This operation does not change the flow properties of the graph.
 
     Returns
     -------
@@ -83,25 +84,26 @@ def get_og_rndcircuit(depth: int, n_qubits: int, n_inputs: int | None = None) ->
 
 
 def get_og_dense(ni: int, no: int, m: int) -> OpenGraph:
-    """Return a dense open graph with causal, gflow and pflow.
+    """
+    Return a dense open graph with causal, gflow, and pflow.
 
     Parameters
     ----------
     ni : int
-        Number of input nodes (must be equal or smaller than `no` ).
+        Number of input nodes (must be less than or equal to `no`).
     no : int
-        Number of output nodes (must be larger than 1).
+        Number of output nodes (must be greater than 1).
     m : int
-        Number of total nodes (it must satisfy `m - 2*no > 0`).
+        Total number of nodes (must satisfy `m - 2*no > 0`).
 
     Returns
     -------
     OpenGraph
-        Open graph with causal and gflow.
+        A dense open graph with causal and gflow properties.
 
     Notes
     -----
-    Adapted from Fig. 1 in Houshmand et al., Phys. Rev. A, 98 (2018) (arXiv:1705.01535)
+    Adapted from Fig. 1 in Houshmand et al., Phys. Rev. A, 98 (2018) (arXiv:1705.01535).
     """
     if no <= 1:
         raise ValueError("Number of outputs must be larger than 1 (no > 1).")
@@ -139,11 +141,19 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Trivial open graph with pflow and nI = nO
     def get_og_0() -> OpenGraph:
-        """Return an open graph with Pauli flow and equal number of outputs and inputs.
+        """
+        Return a trivial open graph with Pauli flow and equal number of outputs and inputs.
 
         The returned graph has the following structure:
 
+        ```
         [0]-1-(2)
+        ```
+
+        Returns
+        -------
+        OpenGraph
+            An open graph with Pauli flow, where the number of inputs equals the number of outputs.
         """
         graph: nx.Graph[int] = nx.Graph([(0, 1), (1, 2)])
         inputs = [0]
@@ -166,13 +176,19 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Non-trivial open graph without pflow and nI = nO
     def get_og_1() -> OpenGraph:
-        """Return an open graph without Pauli flow and equal number of outputs and inputs.
+        """
+        Return an open graph without Pauli flow and equal number of outputs and inputs.
 
         The returned graph has the following structure:
 
-        [0]-2-4-(6)
-            | |
-        [1]-3-5-(7)
+            [0]--2--4--(6)
+             |         |
+            [1]--3--5--(7)
+
+        Returns
+        -------
+        OpenGraph
+            An instance of OpenGraph representing the specified structure.
         """
         graph: nx.Graph[int] = nx.Graph([(0, 2), (1, 3), (2, 3), (2, 4), (3, 5), (4, 5), (4, 6), (5, 7)])
         inputs = [1, 0]
@@ -226,13 +242,19 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Non-trivial open graph with pflow and nI = nO
     def get_og_2() -> OpenGraph:
-        """Return an open graph with Pauli flow and equal number of outputs and inputs.
+        """
+        Return an open graph with Pauli flow and an equal number of outputs and inputs.
 
         The returned graph has the following structure:
 
-        [0]-2-4-(6)
-            | |
-        [1]-3-5-(7)
+            [0]-2-4-(6)
+                | |
+            [1]-3-5-(7)
+
+        Returns
+        --------
+        OpenGraph
+            An open graph with specified structure and properties.
         """
         graph: nx.Graph[int] = nx.Graph([(0, 2), (1, 3), (2, 3), (2, 4), (3, 5), (4, 5), (4, 6), (5, 7)])
         inputs = [0, 1]
@@ -286,9 +308,16 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Non-trivial open graph with pflow and nI != nO
     def get_og_3() -> OpenGraph:
-        """Return an open graph with Pauli flow and unequal number of outputs and inputs.
+        """
+        Return a non-trivial open graph with Pauli flow and unequal numbers of outputs and inputs.
 
-        Example from Fig. 1 in Mitosek and Backens, 2024 (arXiv:2410.23439).
+        This function constructs an open graph as described in Figure 1 of Mitosek and Backens (2024),
+        available at arXiv:2410.23439.
+
+        Returns
+        -------
+        OpenGraph
+            An instance of the OpenGraph class representing the specified non-trivial open graph.
         """
         graph: nx.Graph[int] = nx.Graph(
             [(0, 2), (2, 4), (3, 4), (4, 6), (1, 4), (1, 6), (2, 3), (3, 5), (2, 6), (3, 6)]
@@ -325,7 +354,23 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Non-trivial open graph with pflow and nI != nO
     def get_og_4() -> OpenGraph:
-        """Return an open graph with Pauli flow and unequal number of outputs and inputs."""
+        """
+        Return an open graph with Pauli flow and an unequal number of outputs and inputs.
+
+        This function constructs a non-trivial open graph where the number of inputs
+        is not equal to the number of outputs. It is designed for testing the final
+        result of the graph structure.
+
+        Returns
+        -------
+        OpenGraph
+            An instance of an OpenGraph representing the specified configuration.
+
+        Notes
+        -----
+        This is part of a set of tests that focus on the final outcomes rather than
+        the intermediate steps of graph construction.
+        """
         graph: nx.Graph[int] = nx.Graph([(0, 2), (1, 3), (2, 3), (2, 6), (3, 4), (4, 7), (4, 5), (7, 8)])
         inputs = [0, 1]
         outputs = [5, 6, 8]
@@ -352,7 +397,22 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Non-trivial open graph with pflow and nI != nO
     def get_og_5() -> OpenGraph:
-        """Return an open graph with Pauli flow and unequal number of outputs and inputs."""
+        """
+        Return a non-trivial open graph with Pauli flow.
+
+        This graph is characterized by having an unequal number of inputs
+        and outputs.
+
+        Returns
+        -------
+        OpenGraph
+            An instance of an OpenGraph representing the defined characteristics.
+
+        Notes
+        -----
+        The function is designed to create a specific type of open graph
+        used in the context of quantum computing and circuit representation.
+        """
         graph: nx.Graph[int] = nx.Graph([(0, 2), (1, 2), (2, 3), (3, 4)])
         inputs = [0, 1]
         outputs = [1, 3, 4]
@@ -372,7 +432,16 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Non-trivial open graph with pflow and nI != nO
     def get_og_6() -> OpenGraph:
-        """Return an open graph with Pauli flow and unequal number of outputs and inputs."""
+        """
+        Return a non-trivial open graph characterized by Pauli flow.
+
+        This graph features an unequal number of outputs and inputs.
+
+        Returns
+        -------
+        OpenGraph
+            An instance of OpenGraph representing the specified configuration.
+        """
         graph: nx.Graph[int] = nx.Graph([(0, 1), (0, 3), (1, 4), (3, 4), (2, 3), (2, 5), (3, 6), (4, 7)])
         inputs = [1]
         outputs = [6, 2, 7]
@@ -398,7 +467,14 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Disconnected open graph with pflow and nI != nO
     def get_og_7() -> OpenGraph:
-        """Return an open graph with Pauli flow and unequal number of outputs and inputs."""
+        """
+        Return a disconnected open graph with Pauli flow, characterized by an unequal number of inputs and outputs.
+
+        Returns
+        -------
+        OpenGraph
+            An instance of OpenGraph representing the specified configuration.
+        """
         graph: nx.Graph[int] = nx.Graph([(0, 1), (0, 2), (2, 3), (1, 3), (4, 6)])
         inputs: list[int] = []
         outputs = [1, 3, 4]
@@ -418,7 +494,17 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Non-trivial open graph without pflow and nI != nO
     def get_og_8() -> OpenGraph:
-        """Return an open graph without Pauli flow and unequal number of outputs and inputs."""
+        """
+        Return a non-trivial open graph.
+
+        This graph is characterized by the absence of Pauli flow
+        and contains an unequal number of outputs and inputs.
+
+        Returns
+        -------
+        OpenGraph
+            An instance of the OpenGraph class representing the desired graph.
+        """
         graph: nx.Graph[int] = nx.Graph(
             [(0, 1), (0, 3), (1, 4), (3, 4), (2, 3), (2, 5), (3, 6), (4, 7), (5, 6), (6, 7)]
         )
@@ -446,7 +532,18 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Disconnected open graph without pflow and nI != nO
     def get_og_9() -> OpenGraph:
-        """Return an open graph without Pauli flow and unequal number of outputs and inputs."""
+        """
+        Return an open graph without Pauli flow and with an unequal number of inputs and outputs.
+
+        This function constructs and returns a disconnected open graph that does not involve
+        Pauli flow, ensuring that the number of input nodes is not equal to the number of
+        output nodes.
+
+        Returns
+        -------
+        OpenGraph
+            An instance of the OpenGraph class representing the specified graph structure.
+        """
         graph: nx.Graph[int] = nx.Graph([(0, 1), (0, 2), (2, 3), (1, 3), (4, 6)])
         inputs = [0]
         outputs = [1, 3, 4]
@@ -466,7 +563,24 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Non-trivial open graph without pflow and nI != nO
     def get_og_10() -> OpenGraph:
-        """Return a graph constructed by adding a disconnected input to graph_6. The resulting graph does not have pflow."""
+        """
+        Construct a non-trivial open graph by modifying an existing graph.
+
+        The function returns a graph obtained by adding a disconnected input to
+        `graph_6`. The resulting graph does not feature pflow, and it is defined
+        under the condition that the number of inputs (nI) is not equal to the
+        number of outputs (nO).
+
+        Returns
+        -------
+        OpenGraph
+            A non-trivial open graph without pflow.
+
+        Notes
+        -----
+        This graph configuration is useful for testing scenarios where the flow
+        dynamics can be analyzed without the influence of pflow.
+        """
         graph: nx.Graph[int] = nx.Graph([(0, 1), (0, 3), (1, 4), (3, 4), (2, 3), (2, 5), (3, 6), (4, 7)])
         graph.add_node(8)
         inputs = [1, 8]
@@ -494,7 +608,15 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Open graph with only Pauli measurements, without pflow and nI != nO
     def get_og_11() -> OpenGraph:
-        """Return an open graph without Pauli flow and unequal number of outputs and inputs."""
+        """
+        Return an open graph with only Pauli measurements, excluding
+        Pauli flow, and with an unequal number of outputs and inputs.
+
+        Returns
+        -------
+        OpenGraph
+            An instance of OpenGraph representing the specified configuration.
+        """
         graph: nx.Graph[int] = nx.Graph([(0, 2), (1, 3), (2, 3), (2, 6), (3, 4), (4, 7), (4, 5), (7, 8)])
         inputs = [0, 1]
         outputs = [5, 6, 8]
@@ -521,7 +643,18 @@ def prepare_test_og() -> list[OpenGraphTestCase]:
 
     # Open graph with only Pauli measurements, with pflow and nI != nO
     def get_og_12() -> OpenGraph:
-        """Return an open graph with Pauli flow and unequal number of outputs and inputs. Even though all nodes are Pauli-measured, open graph has flow because none of them are inputs."""
+        """
+        Return an open graph with Pauli measurements and unequal number of outputs and inputs.
+
+        This function constructs an open graph where all nodes are measured using Pauli measurements.
+        Despite all nodes being Pauli-measured, the graph maintains flow because none of the nodes are inputs,
+        resulting in a scenario where the number of outputs (nO) is not equal to the number of inputs (nI).
+
+        Returns
+        -------
+        OpenGraph
+            An instance of an open graph characterized by Pauli flow and an unequal count of outputs and inputs.
+        """
         graph: nx.Graph[int] = nx.Graph([(0, 2), (1, 3), (2, 3), (2, 6), (3, 4), (4, 7), (4, 5), (7, 8)])
         outputs = [5, 6, 8]
         meas = {

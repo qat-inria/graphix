@@ -1,4 +1,4 @@
-"""Functions to generate various random objects."""
+"Functions to generate various random objects."
 
 from __future__ import annotations
 
@@ -24,14 +24,44 @@ if TYPE_CHECKING:
 
 
 def rand_herm(sz: int, rng: Generator | None = None) -> npt.NDArray[np.complex128]:
-    """Generate random hermitian matrix of size sz*sz."""
+    """
+    Generate a random Hermitian matrix of size (sz, sz).
+
+    Parameters
+    ----------
+    sz : int
+        The size of the desired Hermitian matrix, which will be of shape (sz, sz).
+    rng : Generator, optional
+        A random number generator instance to use for generating random numbers.
+        If None, the default random generator will be used.
+
+    Returns
+    -------
+    npt.NDArray[np.complex128]
+        A Hermitian matrix of shape (sz, sz) with complex128 data type.
+    """
     rng = ensure_rng(rng)
     tmp = rng.random(size=(sz, sz)) + 1j * rng.random(size=(sz, sz))
     return tmp + tmp.conj().T
 
 
 def rand_unit(sz: int, rng: Generator | None = None) -> npt.NDArray[np.complex128]:
-    """Generate haar random unitary matrix of size sz*sz."""
+    """
+    Generate a Haar random unitary matrix of size (sz, sz).
+
+    Parameters
+    ----------
+    sz : int
+        The size of the unitary matrix to be generated (number of rows/columns).
+    rng : Generator or None, optional
+        A random number generator for reproducibility. If None, the default
+        random number generator from NumPy is used. Default is None.
+
+    Returns
+    -------
+    npt.NDArray[np.complex128]
+        A sz x sz unitary matrix sampled according to the Haar measure.
+    """
     rng = ensure_rng(rng)
     if sz == 1:
         return np.array([np.exp(1j * rng.random(size=1) * 2 * np.pi)])
@@ -42,20 +72,28 @@ UNITS = np.array([1, 1j])
 
 
 def rand_dm(dim: int, rng: Generator | None = None, rank: int | None = None) -> npt.NDArray[np.complex128]:
-    """Generate random density matrices (positive semi-definite matrices with unit trace).
+    """
+    Generate random density matrices (positive semi-definite matrices with unit trace).
 
-    Returns either a :class:`graphix.sim.density_matrix.DensityMatrix` or a :class:`np.ndarray` depending on the parameter *dm_dtype*.
+    The function returns either a :class:`graphix.sim.density_matrix.DensityMatrix` or a :class:`np.ndarray` depending on the provided parameters.
 
-    :param dim: Linear dimension of the (square) matrix
-    :type dim: int
-    :param rank: Rank of the density matrix (1 = pure state). If not specified then sent to dim (maximal rank).
-        Defaults to None
-    :type rank: int, optional
-    :return: the density matrix in the specified format.
-    :rtype: DensityMatrix | np.ndarray
+    Parameters
+    ----------
+    dim : int
+        Linear dimension of the (square) matrix.
+    rank : int, optional
+        Rank of the density matrix (1 = pure state). If not specified, the rank will be set to `dim` (maximal rank). Defaults to None.
+    rng : Generator, optional
+        A random number generator for reproducibility. Defaults to None, which uses the default random number generator.
 
-    .. note::
-        Thanks to Ulysse Chabaud.
+    Returns
+    -------
+    npt.NDArray[np.complex128]
+        The density matrix in the specified format.
+
+    Notes
+    -----
+    Thanks to Ulysse Chabaud.
     """
     rng = ensure_rng(rng)
 
@@ -76,18 +114,30 @@ def rand_dm(dim: int, rng: Generator | None = None, rank: int | None = None) -> 
 def rand_gauss_cpx_mat(
     dim: int, rng: Generator | None = None, sig: float = 1 / np.sqrt(2)
 ) -> npt.NDArray[np.complex128]:
-    """Return a square array of standard normal complex random variates.
+    """
+    Return a square array of standard normal complex random variates.
+
+    This function generates a square matrix of complex numbers where each
+    entry is sampled from a standard normal distribution. The entries are
+    drawn independently.
 
     Code from QuTiP: https://qutip.org/docs/4.0.2/modules/qutip/random_objects.html
 
     Parameters
     ----------
     dim : int
-        Linear dimension of the (square) matrix
-    sig : float
-        standard deviation of random variates.
-        ``sig = 'ginibre`` draws from the Ginibre ensemble ie  sig = 1 / sqrt(2 * dim).
+        Linear dimension of the (square) matrix.
+    rng : Generator | None, optional
+        Random number generator instance. If None, the default generator is used.
+    sig : float, optional
+        Standard deviation of the random variates. The default is
+        ``sig = 1 / np.sqrt(2)`. For drawing from the Ginibre ensemble,
+        set `sig = 1 / np.sqrt(2 * dim)`.
 
+    Returns
+    -------
+    npt.NDArray[np.complex128]
+        A square array of complex random variates with shape (dim, dim).
     """
     rng = ensure_rng(rng)
 
@@ -100,22 +150,35 @@ def rand_gauss_cpx_mat(
 def rand_channel_kraus(
     dim: int, rng: Generator | None = None, rank: int | None = None, sig: float = 1 / np.sqrt(2)
 ) -> KrausChannel:
-    """Return a random :class:`graphix.sim.channels.KrausChannel` object of given dimension and rank.
+    """
+    Return a random :class:`graphix.sim.channels.KrausChannel` object of the given dimension and rank.
 
-    Following the method of
-    [KNPPZ21] Kukulski, Nechita, Pawela, Puchała, Życzkowsk https://arxiv.org/pdf/2011.02994.pdf
+    This function generates a randomized Kraus channel following the method outlined in
+    [KNPPZ21] Kukulski, Nechita, Pawela, Puchała, Życzkowsk,
+    available at https://arxiv.org/pdf/2011.02994.pdf.
 
     Parameters
     ----------
     dim : int
         Linear dimension of the (square) matrix of each Kraus operator.
-        Only square operators so far.
+        Only square operators are supported.
 
-    rank : int (default to full *rank dimension**2*)
-        Choi rank ie the number of Kraus operators. Must be between one and *dim**2*.
+    rank : int, optional
+        Choi rank, i.e., the number of Kraus operators. Must be between one and
+        `dim**2`. Defaults to the full rank (`dim**2`).
 
-    sig : see rand_cpx
+    rng : Generator, optional
+        A random number generator instance. If None, the default random number generator
+        is used.
 
+    sig : float, default=1/√2
+        A parameter affecting the generated Kraus operators. This parameter is used
+        as indicated in the `rand_cpx` function.
+
+    Returns
+    -------
+    KrausChannel
+        A random KrausChannel object with the specified parameters.
     """
     rng = ensure_rng(rng)
 
@@ -141,7 +204,29 @@ def rand_channel_kraus(
 # or merge with previous with a "pauli" kwarg?
 # continue here
 def rand_pauli_channel_kraus(dim: int, rng: Generator | None = None, rank: int | None = None) -> KrausChannel:
-    """Return a random Kraus channel operator."""
+    """
+    Generate a random Kraus channel operator based on the Pauli channel.
+
+    Parameters
+    ----------
+    dim : int
+        The dimension of the system (the Hilbert space dimension).
+    rng : Generator, optional
+        A random number generator instance. If None, a default random number generator is used.
+    rank : int, optional
+        The rank of the Kraus operators. If None, a default rank is chosen.
+
+    Returns
+    -------
+    KrausChannel
+        An instance of a KrausChannel representing the random Pauli channel.
+
+    Notes
+    -----
+    The generated channel consists of Kraus operators that correspond to
+    actions of the Pauli group on the quantum state. The number of Kraus
+    operators is determined by the specified rank.
+    """
     rng = ensure_rng(rng)
 
     if not isinstance(dim, int):
@@ -190,32 +275,39 @@ def rand_pauli_channel_kraus(dim: int, rng: Generator | None = None, rank: int |
 
 
 def _first_rotation(circuit: Circuit, nqubits: int, rng: Generator) -> None:
-    """Apply an initial random :math:`R_X` rotation to each qubit.
+    """
+    Apply an initial random :math:`R_X` rotation to each qubit.
 
     Parameters
     ----------
     circuit : Circuit
-        Circuit to modify in place.
+        The circuit to modify in place.
     nqubits : int
-        Number of qubits.
+        The number of qubits.
     rng : numpy.random.Generator
-        Random number generator used to sample rotation angles.
+        The random number generator used to sample rotation angles.
     """
     for qubit in range(nqubits):
         circuit.rx(qubit, rng.random())
 
 
 def _mid_rotation(circuit: Circuit, nqubits: int, rng: Generator) -> None:
-    """Apply a random :math:`R_X` then :math:`R_Z` rotation to each qubit.
+    """
+    Apply a random :math:`R_X` followed by a random :math:`R_Z` rotation to each qubit.
 
     Parameters
     ----------
     circuit : Circuit
-        Circuit to modify in place.
+        The circuit to modify in place.
     nqubits : int
-        Number of qubits.
+        The number of qubits in the circuit.
     rng : numpy.random.Generator
-        Random number generator used to sample rotation angles.
+        A random number generator used to sample rotation angles.
+
+    Returns
+    -------
+    None
+        This function modifies the circuit in place and does not return any value.
     """
     for qubit in range(nqubits):
         circuit.rx(qubit, rng.random())
@@ -223,37 +315,45 @@ def _mid_rotation(circuit: Circuit, nqubits: int, rng: Generator) -> None:
 
 
 def _last_rotation(circuit: Circuit, nqubits: int, rng: Generator) -> None:
-    """Apply a final random :math:`R_Z` rotation to each qubit.
+    """
+    Apply a final random :math:`R_Z` rotation to each qubit.
 
     Parameters
     ----------
     circuit : Circuit
-        Circuit to modify in place.
+        The circuit to modify in place.
     nqubits : int
-        Number of qubits.
+        The number of qubits in the circuit.
     rng : numpy.random.Generator
-        Random number generator used to sample rotation angles.
+        The random number generator used to sample rotation angles.
+
+    Returns
+    -------
+    None
+        This function modifies the circuit in place and does not return a value.
     """
     for qubit in range(nqubits):
         circuit.rz(qubit, rng.random())
 
 
 def _entangler(circuit: Circuit, pairs: Iterable[tuple[int, int]]) -> None:
-    """Apply CNOT gates between qubit pairs.
+    """
+    Apply CNOT gates between specified qubit pairs.
 
     Parameters
     ----------
     circuit : Circuit
-        Circuit to modify in place.
+        The circuit to modify in place.
     pairs : Iterable[tuple[int, int]]
-        Pairs of control and target qubits for CNOT operations.
+        An iterable of pairs where each pair consists of control and target qubit indices for the CNOT operations.
     """
     for a, b in pairs:
         circuit.cnot(a, b)
 
 
 def _entangler_rzz(circuit: Circuit, pairs: Iterable[tuple[int, int]], rng: Generator) -> None:
-    """Apply random :math:`R_{ZZ}` gates between qubit pairs.
+    """
+    Apply random :math:`R_{ZZ}` gates between qubit pairs.
 
     Parameters
     ----------
@@ -276,7 +376,8 @@ def rand_gate(
     *,
     use_rzz: bool = False,
 ) -> Circuit:
-    """Return a random gate composed of single-qubit rotations and entangling operations.
+    """
+    Return a random gate composed of single-qubit rotations and entangling operations.
 
     Parameters
     ----------
@@ -286,11 +387,11 @@ def rand_gate(
         Depth of alternating rotation and entangling layers.
     pairs : Iterable[tuple[int, int]]
         Pairs of qubits used for entangling operations.
-    rng : numpy.random.Generator, optional
-        Random number generator used to sample rotation angles. If ``None``, a
+    rng : Generator, optional
+        Random number generator used to sample rotation angles. If `None`, a
         default generator is created.
     use_rzz : bool, optional
-        If ``True`` use :math:`R_{ZZ}` gates as entanglers instead of CNOT.
+        If `True`, use :math:`R_{ZZ}` gates as entanglers instead of CNOT.
 
     Returns
     -------
@@ -312,7 +413,8 @@ def rand_gate(
 
 
 def _genpair(n_qubits: int, count: int, rng: Generator) -> Iterator[tuple[int, int]]:
-    """Yield random pairs of qubit indices.
+    """
+    Yield random pairs of qubit indices.
 
     Parameters
     ----------
@@ -336,7 +438,8 @@ def _genpair(n_qubits: int, count: int, rng: Generator) -> Iterator[tuple[int, i
 
 
 def _gentriplet(n_qubits: int, count: int, rng: Generator) -> Iterator[tuple[int, int, int]]:
-    """Yield random triplets of qubit indices.
+    """
+    Yield random triplets of qubit indices.
 
     Parameters
     ----------
@@ -368,7 +471,8 @@ def rand_circuit(
     use_ccx: bool = False,
     parameters: Iterable[Parameter] | None = None,
 ) -> Circuit:
-    """Return a random parameterized circuit used for testing or benchmarking.
+    """
+    Return a random parameterized circuit used for testing or benchmarking.
 
     Parameters
     ----------
@@ -376,13 +480,13 @@ def rand_circuit(
         Number of qubits in the circuit.
     depth : int
         Number of alternating entangling and single-qubit layers.
-    rng : numpy.random.Generator, optional
-        Random number generator. A default generator is created if ``None``.
+    rng : Generator | None, optional
+        Random number generator. A default generator is created if `None`.
     use_rzz : bool, optional
-        If ``True`` add :math:`R_{ZZ}` gates in each layer.
+        If `True`, add :math:`R_{ZZ}` gates in each layer.
     use_ccx : bool, optional
-        If ``True`` add CCX gates in each layer.
-    parameters : Iterable[Parameter], optional
+        If `True`, add CCX gates in each layer.
+    parameters : Iterable[Parameter] | None, optional
         Parameters used for randomly chosen rotation gates.
 
     Returns

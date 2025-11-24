@@ -1,4 +1,10 @@
-"""Exporter to OpenQASM3."""
+"""
+Exporter to OpenQASM3.
+
+This module provides functionality to export quantum circuit representations
+to the OpenQASM3 format, allowing for interoperability with various quantum
+computing platforms and tools that support OpenQASM3.
+"""
 
 from __future__ import annotations
 
@@ -21,7 +27,13 @@ if TYPE_CHECKING:
 
 
 def circuit_to_qasm3(circuit: Circuit) -> str:
-    """Export circuit instructions to OpenQASM 3.0 representation.
+    """
+    Export circuit instructions to OpenQASM 3.0 representation.
+
+    Parameters
+    ----------
+    circuit : Circuit
+        The circuit containing the instructions to be exported.
 
     Returns
     -------
@@ -32,12 +44,18 @@ def circuit_to_qasm3(circuit: Circuit) -> str:
 
 
 def circuit_to_qasm3_lines(circuit: Circuit) -> Iterator[str]:
-    """Export circuit instructions to line-by-line OpenQASM 3.0 representation.
+    """
+    Export circuit instructions to a line-by-line OpenQASM 3.0 representation.
+
+    Parameters
+    ----------
+    circuit : Circuit
+        The circuit to be exported.
 
     Returns
     -------
     Iterator[str]
-        The OpenQASM 3.0 lines that represent the circuit.
+        An iterator over the OpenQASM 3.0 lines that represent the circuit.
     """
     yield "OPENQASM 3;"
     yield 'include "stdgates.inc";'
@@ -49,12 +67,54 @@ def circuit_to_qasm3_lines(circuit: Circuit) -> Iterator[str]:
 
 
 def qasm3_qubit(index: int) -> str:
-    """Return the name of the indexed qubit."""
+    """
+    Return the name of the indexed qubit.
+
+    Parameters
+    ----------
+    index : int
+        The index of the qubit, which should be a non-negative integer.
+
+    Returns
+    -------
+    str
+        The name of the qubit in QASM 3 format, represented as 'q[<index>]'.
+
+    Raises
+    ------
+    ValueError
+        If the index is negative.
+    """
     return f"q[{index}]"
 
 
 def qasm3_gate_call(gate: str, operands: Iterable[str], args: Iterable[str] | None = None) -> str:
-    """Return the OpenQASM3 gate call."""
+    """
+    Return the OpenQASM3 gate call.
+
+    Parameters
+    ----------
+    gate : str
+        The name of the quantum gate to be invoked.
+    operands : Iterable[str]
+        The list of qubit operands on which the gate operates.
+    args : Iterable[str] | None, optional
+        Additional arguments for the gate, if applicable. If no additional
+        arguments are needed, this can be set to None. The default is None.
+
+    Returns
+    -------
+    str
+        The formatted OpenQASM3 gate call as a string.
+
+    Examples
+    --------
+    >>> qasm3_gate_call('cx', ['q[0]', 'q[1]'])
+    'cx q[0], q[1];'
+
+    >>> qasm3_gate_call('rz', ['q[0]'], args=['1.57'])
+    'rz(1.57) q[0];'
+    """
     operands_str = ", ".join(operands)
     if args is None:
         return f"{gate} {operands_str}"
@@ -63,7 +123,27 @@ def qasm3_gate_call(gate: str, operands: Iterable[str], args: Iterable[str] | No
 
 
 def angle_to_qasm3(angle: ExpressionOrFloat) -> str:
-    """Get the OpenQASM3 representation of an angle."""
+    """
+    Convert an angle to its OpenQASM3 string representation.
+
+    Parameters
+    ----------
+    angle : ExpressionOrFloat
+        The angle to be converted, which can be of type Expression or a float value.
+
+    Returns
+    -------
+    str
+        The OpenQASM3 representation of the given angle.
+
+    Examples
+    --------
+    >>> angle_to_qasm3(1.5708)
+    '1.5708'
+
+    >>> angle_to_qasm3('pi/2')
+    'pi/2'
+    """
     if not isinstance(angle, float):
         raise TypeError("QASM export of symbolic pattern is not supported")
     rad_over_pi = angle / pi
@@ -71,7 +151,19 @@ def angle_to_qasm3(angle: ExpressionOrFloat) -> str:
 
 
 def instruction_to_qasm3(instruction: Instruction) -> str:
-    """Get the OpenQASM3 representation of a single circuit instruction."""
+    """
+    Convert a single circuit instruction to its OpenQASM3 representation.
+
+    Parameters
+    ----------
+    instruction : Instruction
+        The circuit instruction to be converted.
+
+    Returns
+    -------
+    str
+        The OpenQASM3 representation of the given instruction.
+    """
     if instruction.kind == InstructionKind.M:
         if PauliMeasurement.try_from(instruction.plane, instruction.angle) != PauliMeasurement(Axis.Z, Sign.PLUS):
             raise ValueError("OpenQASM3 only supports measurements in Z axis.")

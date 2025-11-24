@@ -1,4 +1,9 @@
-"""Pretty-printing utilities."""
+"""
+Pretty-printing utilities.
+
+This module provides a collection of utilities for formatting and displaying
+data structures in a more readable and visually appealing manner.
+"""
 
 from __future__ import annotations
 
@@ -20,7 +25,26 @@ if TYPE_CHECKING:
 
 
 class OutputFormat(Enum):
-    """Enumeration of the output format for pretty-printing."""
+    """
+    Enumeration of the output formats for pretty-printing.
+
+    Attributes
+    ----------
+    JSON : str
+        A string representation of the JSON format.
+    XML : str
+        A string representation of the XML format.
+    CSV : str
+        A string representation of the CSV format.
+    PLAIN : str
+        A string representation of the plain text format.
+
+    Notes
+    -----
+    This class serves as a simple enumeration for defining various
+    output formats used in the pretty-printing of data. These formats
+    can be utilized to specify how data should be rendered or displayed.
+    """
 
     ASCII = enum.auto()
     LaTeX = enum.auto()
@@ -30,12 +54,12 @@ class OutputFormat(Enum):
 def angle_to_str(
     angle: float, output: OutputFormat, max_denominator: int = 1000, multiplication_sign: bool = False
 ) -> str:
-    r"""
+    """
     Return a string representation of an angle given in units of π.
 
-    - If the angle is a "simple" fraction of π (within the given max_denominator and a small tolerance),
-      it returns a fractional string, e.g. "π/2", "2π", or "-3π/4".
-    - Otherwise, it returns the angle in radians (angle * π) formatted to two decimal places.
+    If the angle is a "simple" fraction of π (within the given `max_denominator` and a small tolerance),
+    it returns a fractional string, e.g. "π/2", "2π", or "-3π/4".
+    Otherwise, it returns the angle in radians (angle * π) formatted to two decimal places.
 
     Parameters
     ----------
@@ -44,13 +68,12 @@ def angle_to_str(
     output : OutputFormat
         Desired formatting style: Unicode (π symbol), LaTeX (\pi), or ASCII ("pi").
     max_denominator : int, optional
-        Maximum denominator for detecting a simple fraction (default: 1000).
-    multiplication_sign : bool
-        Optional (default: ``False``).
-        If ``True``, the multiplication sign  is made explicit between the
+        Maximum denominator for detecting a simple fraction (default is 1000).
+    multiplication_sign : bool, optional
+        If ``True``, the multiplication sign is made explicit between the
         numerator and π:
         ``2×π`` in Unicode, ``2 \times \pi`` in LaTeX, and ``2*pi`` in ASCII.
-        If ``False``, the multiplication sign is implicit:
+        If ``False`` (default), the multiplication sign is implicit:
         ``2π`` in Unicode, ``2\pi`` in LaTeX, ``2pi`` in ASCII.
 
     Returns
@@ -100,7 +123,20 @@ def angle_to_str(
 
 
 def domain_to_str(domain: set[Node]) -> str:
-    """Return the string representation of a domain."""
+    """
+    Convert a set of Nodes to its string representation.
+
+    Parameters
+    ----------
+    domain : set[Node]
+        A set containing Node objects that define a domain.
+
+    Returns
+    -------
+    str
+        A string representation of the domain, concatenated from the
+        string representations of each Node in the set.
+    """
     return f"{{{','.join(str(node) for node in domain)}}}"
 
 
@@ -109,14 +145,20 @@ SUPERSCRIPTS = str.maketrans(string.digits, "⁰¹²³⁴⁵⁶⁷⁸⁹")
 
 
 def command_to_str(cmd: command.Command, output: OutputFormat) -> str:
-    """Return the string representation of a command according to the given format.
+    """
+    Return the string representation of a command according to the given format.
 
     Parameters
     ----------
-    cmd: Command
+    cmd : Command
         The command to pretty print.
-    output: OutputFormat
+    output : OutputFormat
         The expected format.
+
+    Returns
+    -------
+    str
+        The string representation of the command in the specified output format.
     """
     out = [cmd.kind.name]
 
@@ -205,18 +247,28 @@ def pattern_to_str(
     limit: int = 40,
     target: Container[command.CommandKind] | None = None,
 ) -> str:
-    """Return the string representation of a pattern according to the given format.
+    """
+    Return the string representation of a pattern according to the given format.
 
     Parameters
     ----------
-    pattern: Pattern
+    pattern : Pattern
         The pattern to pretty print.
-    output: OutputFormat
+    output : OutputFormat
         The expected format.
-    left_to_right: bool
-        Optional. If `True`, the first command will appear on the beginning of
-        the resulting string. If `False` (the default), the first command will
-        appear at the end of the string.
+    left_to_right : bool, optional
+        If `True`, the first command will appear at the beginning of the resulting
+        string. If `False` (the default), the first command will appear at the
+        end of the string.
+    limit : int, optional
+        The maximum length of the resulting string. Default is 40.
+    target : Container[command.CommandKind] or None, optional
+        A collection of command kinds to filter or limit the output to. Default is None.
+
+    Returns
+    -------
+    str
+        The string representation of the pattern in the specified format.
     """
     separator = r"\," if output == OutputFormat.LaTeX else " "
     command_list = list(pattern)

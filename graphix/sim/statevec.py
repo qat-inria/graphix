@@ -1,4 +1,9 @@
-"""MBQC state vector backend."""
+"""
+MBQC State Vector Backend
+==========================
+
+This module provides functionality for simulating measurement-based quantum computation (MBQC) using a state vector representation.
+"""
 
 from __future__ import annotations
 
@@ -41,7 +46,35 @@ SWAP_TENSOR = np.array(
 
 
 class Statevec(DenseState):
-    """Statevector object."""
+    """
+    Statevector object.
+
+    The Statevec class represents a quantum state in the form of a vector.
+    It provides methods to manipulate and perform calculations on the
+    statevector, enabling quantum mechanical simulations.
+
+    Attributes
+    ----------
+    vector : numpy.ndarray
+        A complex-valued array representing the quantum state.
+
+    Methods
+    -------
+    normalize():
+        Normalizes the statevector to ensure it is a valid quantum state.
+
+    tensor_product(other):
+        Computes the tensor product of the current statevector with another.
+
+    measure(basis):
+        Measures the statevector in the specified basis and returns the outcome.
+
+    __str__():
+        Returns a string representation of the statevector.
+
+    __repr__():
+        Returns a detailed string representation of the statevector for debugging.
+    """
 
     psi: Matrix
 
@@ -50,26 +83,27 @@ class Statevec(DenseState):
         data: Data = BasicStates.PLUS,
         nqubit: int | None = None,
     ) -> None:
-        """Initialize statevector objects.
+        """
+        Initialize statevector objects.
 
-        `data` can be:
-        - a single :class:`graphix.states.State` (classical description of a quantum state)
-        - an iterable of :class:`graphix.states.State` objects
-        - an iterable of scalars (A 2**n numerical statevector)
-        - a *graphix.statevec.Statevec* object
+        The `data` parameter can be one of the following:
+        - A single :class:`graphix.states.State` (classical description of a quantum state).
+        - An iterable of :class:`graphix.states.State` objects.
+        - An iterable of scalars (a 2**n numerical statevector).
+        - A *graphix.statevec.Statevec* object.
 
-        If *nqubit* is not provided, the number of qubit is inferred from *data* and checked for consistency.
-        If only one :class:`graphix.states.State` is provided and nqubit is a valid integer, initialize the statevector
-        in the tensor product state.
-        If both *nqubit* and *data* are provided, consistency of the dimensions is checked.
-        If a *graphix.statevec.Statevec* is passed, returns a copy.
+        If *nqubit* is not provided, the number of qubits is inferred from *data* and checked for consistency.
+        If only one :class:`graphix.states.State` is provided and *nqubit* is a valid integer, the statevector is initialized
+        in the tensor product state. If both *nqubit* and *data* are provided, consistency of the dimensions is checked.
+        If a *graphix.statevec.Statevec* is passed, a copy of it is returned.
 
         Parameters
         ----------
         data : Data, optional
-            input data to prepare the state. Can be a classical description or a numerical input, defaults to graphix.states.BasicStates.PLUS
+            Input data to prepare the state. Can be a classical description or a numerical input. Defaults to
+            :class:`graphix.states.BasicStates.PLUS`.
         nqubit : int, optional
-            number of qubits to prepare, defaults to None
+            Number of qubits to prepare. Defaults to None.
         """
         if nqubit is not None and nqubit < 0:
             raise ValueError("nqubit must be a non-negative integer.")
@@ -139,12 +173,19 @@ class Statevec(DenseState):
             raise TypeError(f"First element of data has type {type(input_list[0])} whereas Number or State is expected")
 
     def __str__(self) -> str:
-        """Return a string description."""
+        """
+        Return a string representation of the Statevec instance.
+
+        Returns
+        -------
+        str
+            A description of the Statevec instance.
+        """
         return f"Statevec object with statevector {self.psi} and length {self.dims()}."
 
     @override
     def add_nodes(self, nqubit: int, data: Data) -> None:
-        r"""
+        """
         Add nodes (qubits) to the state vector and initialize them in a specified state.
 
         Parameters
@@ -153,14 +194,14 @@ class Statevec(DenseState):
             The number of qubits to add to the state vector.
 
         data : Data, optional
-            The state in which to initialize the newly added nodes.
+            The state in which to initialize the newly added nodes. It can take the following forms:
 
-            - If a single basic state is provided, all new nodes are initialized in that state.
-            - If a list of basic states is provided, it must match the length of ``nodes``, and
-              each node is initialized with its corresponding state.
-            - A single-qubit state vector will be broadcast to all nodes.
-            - A multi-qubit state vector of dimension :math:`2^n`, where :math:`n = \mathrm{len}(nodes)`,
-              initializes the new nodes jointly.
+            - A single basic state, in which case all new nodes are initialized to that state.
+            - A list of basic states, which must match the length of `nodes`, where each node is initialized
+              with its corresponding state.
+            - A single-qubit state vector, which will be broadcast to all new nodes.
+            - A multi-qubit state vector with dimension :math:`2^n`, where :math:`n = \mathrm{len}(nodes)`,
+              which initializes the new nodes jointly.
 
         Notes
         -----
@@ -171,28 +212,30 @@ class Statevec(DenseState):
 
     @override
     def evolve_single(self, op: Matrix, i: int) -> None:
-        """Apply a single-qubit operation.
+        """
+        Apply a single-qubit operation to the specified qubit index.
 
         Parameters
         ----------
         op : numpy.ndarray
-            2*2 matrix
+            A 2x2 matrix representing the single-qubit operation to be applied.
         i : int
-            qubit index
+            The index of the qubit on which the operation will be performed.
         """
         psi = tensordot(op, self.psi, (1, i))
         self.psi = np.moveaxis(psi, 0, i)
 
     @override
     def evolve(self, op: Matrix, qargs: Sequence[int]) -> None:
-        """Apply a multi-qubit operation.
+        """
+        Apply a multi-qubit operation.
 
         Parameters
         ----------
         op : numpy.ndarray
-            2^n*2^n matrix
-        qargs : list of int
-            target qubits' indices
+            A 2^n x 2^n matrix representing the operation to be applied.
+        qargs : Sequence[int]
+            A sequence of integers representing the indices of the target qubits.
         """
         op_dim = int(np.log2(len(op)))
         # TODO shape = (2,)* 2 * op_dim
@@ -206,25 +249,40 @@ class Statevec(DenseState):
         self.psi = np.moveaxis(psi, range(len(qargs)), qargs)
 
     def dims(self) -> tuple[int, ...]:
-        """Return the dimensions."""
+        """
+        Returns the dimensions of the state vector.
+
+        Returns
+        -------
+        tuple[int, ...]
+            A tuple representing the dimensions of the state vector.
+        """
         return self.psi.shape
 
     # Note that `@property` must appear before `@override` for pyright
     @property
     @override
     def nqubit(self) -> int:
-        """Return the number of qubits."""
+        """
+        Get the number of qubits in the quantum state.
+
+        Returns
+        -------
+        int
+            The number of qubits represented by the state vector.
+        """
         return self.psi.size - 1
 
     @override
     def remove_qubit(self, qarg: int) -> None:
-        r"""Remove a separable qubit from the system and assemble a statevector for remaining qubits.
+        """
+        Remove a separable qubit from the system and assemble a statevector for the remaining qubits.
 
-        This results in the same result as partial trace, if the qubit *qarg* is separable from the rest.
+        This method produces a result equivalent to performing a partial trace if the specified qubit
+        (*qarg*) is separable from the rest of the qubits.
 
-        For a statevector :math:`\ket{\psi} = \sum c_i \ket{i}` with sum taken over
-        :math:`i \in [ 0 \dots 00,\ 0\dots 01,\ \dots,\
-        1 \dots 11 ]`, this method returns
+        For a statevector :math:`\ket{\psi} = \sum c_i \ket{i}` with the sum taken over
+        :math:`i \in [0 \dots 00,\ 0\dots 01,\ \dots,\ 1 \dots 11]`, this method returns
 
         .. math::
             \begin{align}
@@ -238,26 +296,25 @@ class Statevec(DenseState):
                     & + \dots \\
                     & + c_{1 \dots 1_{\mathrm{k-1}}0_{\mathrm{k}}1_{\mathrm{k+1}} \dots 11}
                     \ket{1 \dots 1_{\mathrm{k-1}}1_{\mathrm{k+1}} \dots 11},
-           \end{align}
+            \end{align}
 
-        (after normalization) for :math:`k =` qarg. If the :math:`k` th qubit is in :math:`\ket{1}` state,
-        above will return zero amplitudes; in such a case the returned state will be the one above with
-        :math:`0_{\mathrm{k}}` replaced with :math:`1_{\mathrm{k}}` .
+        (after normalization), where :math:`k` is equal to *qarg*. If the :math:`k` th qubit is in the
+        state :math:`\ket{1}`, the above will yield zero amplitudes. In this case, the returned
+        state will be the one above with :math:`0_{\mathrm{k}}` replaced by :math:`1_{\mathrm{k}}`.
 
         .. warning::
-            This method assumes the qubit with index *qarg* to be separable from the rest,
-            and is implemented as a significantly faster alternative for partial trace to
-            be used after single-qubit measurements.
-            Care needs to be taken when using this method.
-            Checks for separability will be implemented soon as an option.
+            This method assumes that the qubit with index *qarg* is separable from the other qubits
+            and is designed to be a significantly faster alternative to the partial trace used after
+            single-qubit measurements. Care should be taken when using this method. Checks for
+            separability will be implemented as an option in the future.
 
         .. seealso::
-            :meth:`graphix.sim.statevec.Statevec.ptrace` and warning therein.
+            :meth:`graphix.sim.statevec.Statevec.ptrace` and the associated warnings.
 
         Parameters
         ----------
         qarg : int
-            qubit index
+            The index of the qubit to be removed.
         """
         norm = _get_statevec_norm(self.psi)
         if isinstance(norm, SupportsFloat):
@@ -274,12 +331,17 @@ class Statevec(DenseState):
 
     @override
     def entangle(self, edge: tuple[int, int]) -> None:
-        """Connect graph nodes.
+        """
+        Connect graph nodes by creating an entangled state between the specified qubits.
 
         Parameters
         ----------
         edge : tuple of int
-            (control, target) qubit indices
+            A tuple containing two integers representing the indices of the control and target qubits, respectively. The first element of the tuple is the index of the control qubit, and the second element is the index of the target qubit.
+
+        Returns
+        -------
+        None
         """
         # contraction: 2nd index - control index, and 3rd index - target index.
         psi = tensordot(CZ_TENSOR, self.psi, ((2, 3), edge))
@@ -287,14 +349,15 @@ class Statevec(DenseState):
         self.psi = np.moveaxis(psi, (0, 1), edge)
 
     def tensor(self, other: Statevec) -> None:
-        r"""Tensor product state with other qubits.
+        """
+        Compute the tensor product of the current state with another state.
 
-        Results in self :math:`\otimes` other.
+        The result is stored in the current state as :math:`self \otimes other`.
 
         Parameters
         ----------
-        other : :class:`graphix.sim.statevec.Statevec`
-            statevector to be tensored with self
+        other : Statevec
+            The statevector to be tensored with the current state.
         """
         psi_self = self.psi.flatten()
         psi_other = other.psi.flatten()
@@ -303,12 +366,13 @@ class Statevec(DenseState):
         self.psi = kron(psi_self, psi_other).reshape((2,) * total_num)
 
     def cnot(self, qubits: tuple[int, int]) -> None:
-        """Apply CNOT.
+        """
+        Apply the CNOT (Controlled-NOT) gate to the state vector.
 
         Parameters
         ----------
         qubits : tuple of int
-            (control, target) qubit indices
+            A tuple containing the indices of the control and target qubits, respectively.
         """
         # contraction: 2nd index - control index, and 3rd index - target index.
         psi = tensordot(CNOT_TENSOR, self.psi, ((2, 3), qubits))
@@ -317,12 +381,15 @@ class Statevec(DenseState):
 
     @override
     def swap(self, qubits: tuple[int, int]) -> None:
-        """Swap qubits.
+        """
+        Swap the specified qubits.
 
         Parameters
         ----------
         qubits : tuple of int
-            (control, target) qubit indices
+            A tuple containing the indices of the qubits to be swapped.
+            The first element is the index of the control qubit, and the
+            second element is the index of the target qubit.
         """
         # contraction: 2nd index - control index, and 3rd index - target index.
         psi = tensordot(SWAP_TENSOR, self.psi, ((2, 3), qubits))
@@ -330,7 +397,16 @@ class Statevec(DenseState):
         self.psi = np.moveaxis(psi, (0, 1), qubits)
 
     def normalize(self) -> None:
-        """Normalize the state in-place."""
+        """
+        Normalize the state vector in-place.
+
+        This method modifies the state vector of the instance to ensure that it has a unit norm.
+        The normalization is performed by dividing the state vector by its norm.
+
+        Returns
+        -------
+        None
+        """
         # Note that the following calls to `astype` are guaranteed to
         # return the original NumPy array itself, since `copy=False` and
         # the `dtype` matches. This is important because the array is
@@ -345,23 +421,42 @@ class Statevec(DenseState):
             psi_c /= norm_c
 
     def flatten(self) -> Matrix:
-        """Return flattened statevector."""
+        """
+        Return the flattened state vector.
+
+        This method transforms the current state vector into a one-dimensional
+        representation, making it easier to work with in various applications
+        such as computations or visualizations.
+
+        Returns
+        -------
+        Matrix
+            A one-dimensional array that represents the flattened state vector.
+
+        Notes
+        -----
+        The flattening is done by reshaping the original state vector into a
+        single row or column, depending on the internal representation of
+        the state vector.
+        """
         return self.psi.flatten()
 
     @override
     def expectation_single(self, op: Matrix, loc: int) -> complex:
-        """Return the expectation value of single-qubit operator.
+        """
+        Return the expectation value of a single-qubit operator.
 
         Parameters
         ----------
         op : numpy.ndarray
-            2*2 operator
+            A 2x2 operator representing the quantum operation on a single qubit.
         loc : int
-            target qubit index
+            The index of the target qubit.
 
         Returns
         -------
-        complex : expectation value.
+        complex
+            The expectation value of the operator for the specified qubit.
         """
         st1 = copy.copy(self)
         st1.normalize()
@@ -370,18 +465,20 @@ class Statevec(DenseState):
         return complex(np.dot(st2.psi.flatten().conjugate(), st1.psi.flatten()))
 
     def expectation_value(self, op: Matrix, qargs: Sequence[int]) -> complex:
-        """Return the expectation value of multi-qubit operator.
+        """
+        Return the expectation value of a multi-qubit operator.
 
         Parameters
         ----------
         op : numpy.ndarray
-            2^n*2^n operator
-        qargs : list of int
-            target qubit indices
+            A 2^n x 2^n operator representing the multi-qubit operator.
+        qargs : Sequence[int]
+            A sequence of integers representing the target qubit indices.
 
         Returns
         -------
-        complex : expectation value
+        complex
+            The expectation value of the operator on the specified qubits.
         """
         st2 = copy.copy(self)
         st2.normalize()
@@ -390,13 +487,49 @@ class Statevec(DenseState):
         return complex(np.dot(st2.psi.flatten().conjugate(), st1.psi.flatten()))
 
     def subs(self, variable: Parameter, substitute: ExpressionOrSupportsFloat) -> Statevec:
-        """Return a copy of the state vector where all occurrences of the given variable in measurement angles are substituted by the given value."""
+        """
+        Substitute occurrences of a variable in measurement angles with a given value.
+
+        This method returns a new instance of the state vector in which all occurrences
+        of the specified variable are replaced by the provided substitute value in the
+        measurement angles.
+
+        Parameters
+        ----------
+        variable : Parameter
+            The variable to substitute in the measurement angles.
+        substitute : ExpressionOrSupportsFloat
+            The value to substitute for the variable.
+
+        Returns
+        -------
+        Statevec
+            A new instance of the state vector with the substitutions applied.
+
+        Notes
+        -----
+        The original state vector remains unchanged.
+        """
         result = Statevec()
         result.psi = np.vectorize(lambda value: parameter.subs(value, variable, substitute))(self.psi)
         return result
 
     def xreplace(self, assignment: Mapping[Parameter, ExpressionOrSupportsFloat]) -> Statevec:
-        """Return a copy of the state vector where all occurrences of the given keys in measurement angles are substituted by the given values in parallel."""
+        """
+        Return a copy of the state vector with substitutions applied to measurement angles.
+
+        Parameters
+        ----------
+        assignment : Mapping[Parameter, ExpressionOrSupportsFloat]
+            A mapping of parameters (keys) to their corresponding values (expressions or floats)
+            that will replace the occurrences in the measurement angles of the state vector.
+
+        Returns
+        -------
+        Statevec
+            A new state vector with all occurrences of the given keys in measurement angles
+            substituted by the provided values, computed in parallel.
+        """
         result = Statevec()
         result.psi = np.vectorize(lambda value: parameter.xreplace(value, assignment))(self.psi)
         return result
@@ -404,13 +537,52 @@ class Statevec(DenseState):
 
 @dataclass(frozen=True)
 class StatevectorBackend(DenseStateBackend[Statevec]):
-    """MBQC simulator with statevector method."""
+    """
+    MBQC Simulator using the statevector method.
+
+    This class implements a simulator for measurement-based quantum computation (MBQC)
+    using a statevector approach. It provides functionalities for initializing quantum states,
+    performing measurements, and simulating quantum operations in a measurement-based framework.
+
+    Attributes
+    ----------
+    quantum_state : Statevector
+        The current quantum state represented as a statevector.
+    measurements : list
+        A list to keep track of the measurement outcomes.
+
+    Methods
+    -------
+    initialize_state(state: Statevector) -> None
+        Initializes the quantum state with the provided statevector.
+
+    apply_gate(gate: str, qubits: list) -> None
+        Applies a quantum gate to specified qubits in the current state.
+
+    measure(qubit: int) -> bool
+        Performs a measurement on the specified qubit and updates the state accordingly.
+
+    reset() -> None
+        Resets the quantum state and measurement history.
+    """
 
     state: Statevec = dataclasses.field(init=False, default_factory=lambda: Statevec(nqubit=0))
 
 
 def _get_statevec_norm_symbolic(psi: npt.NDArray[np.object_]) -> ExpressionOrFloat:
-    """Return norm of the state."""
+    """
+    Calculate the norm of a given state vector.
+
+    Parameters
+    ----------
+    psi : npt.NDArray[np.object_]
+        A state vector represented as a NumPy array of objects.
+
+    Returns
+    -------
+    ExpressionOrFloat
+        The norm of the state vector, which can be either a symbolic expression or a float value.
+    """
     flat = psi.flatten()
     return check_expression_or_float(np.sqrt(np.sum(flat.conj() * flat)))
 
@@ -423,7 +595,19 @@ def _get_statevec_norm_numeric(psi: npt.NDArray[np.complex128]) -> float:
 
 
 def _get_statevec_norm(psi: Matrix) -> ExpressionOrFloat:
-    """Return norm of the state."""
+    """
+    Calculate the norm of the state vector.
+
+    Parameters
+    ----------
+    psi : Matrix
+        The state vector for which the norm is to be calculated.
+
+    Returns
+    -------
+    ExpressionOrFloat
+        The norm of the state vector.
+    """
     # Narrow psi to concrete dtype
     if psi.dtype == np.object_:
         return _get_statevec_norm_symbolic(psi.astype(np.object_, copy=False))

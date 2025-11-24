@@ -1,7 +1,8 @@
-"""MBQC simulator.
+"""
+MBQC Simulator.
 
-Simulates MBQC by executing the pattern.
-
+This module simulates measurement-based quantum computation (MBQC) by executing
+quantum patterns.
 """
 
 from __future__ import annotations
@@ -40,11 +41,18 @@ _StateT_co = TypeVar("_StateT_co", bound="BackendState", covariant=True)
 
 
 class MeasureMethod(abc.ABC):
-    """Measure method used by the simulator, with default measurement method that implements MBQC.
+    """
+    Measure method used by the simulator.
 
-    To be overwritten by custom measurement methods in the case of delegated QC protocols.
+    This class implements the default measurement method based on Measurement-Based
+    Quantum Computation (MBQC). It is designed to be overridden by custom measurement
+    methods in the case of delegated quantum computing protocols.
 
-    Example: class `ClientMeasureMethod` in https://github.com/qat-inria/veriphix
+    Examples
+    --------
+    A custom measurement method can be implemented by inheriting this class.
+    For instance, see the `ClientMeasureMethod` class in the repository:
+    https://github.com/qat-inria/veriphix.
     """
 
     def measure(
@@ -54,7 +62,24 @@ class MeasureMethod(abc.ABC):
         noise_model: NoiseModel | None = None,
         rng: Generator | None = None,
     ) -> None:
-        """Perform a measure."""
+        """
+        Perform a measurement using the specified backend.
+
+        Parameters
+        ----------
+        backend : Backend[_StateT_co]
+            The backend used to perform the measurement.
+        cmd : BaseM
+            The command that specifies the measurement operation.
+        noise_model : NoiseModel, optional
+            An optional noise model to simulate noise during the measurement.
+        rng : Generator, optional
+            An optional random number generator to use for stochastic processes.
+
+        Returns
+        -------
+        None
+        """
         description = self.get_measurement_description(cmd)
         result = backend.measure(cmd.node, description, rng=rng)
         if noise_model is not None:
@@ -63,7 +88,8 @@ class MeasureMethod(abc.ABC):
 
     @abc.abstractmethod
     def get_measurement_description(self, cmd: BaseM) -> Measurement:
-        """Return the description of the measurement performed by a command.
+        """
+        Return the description of the measurement performed by a command.
 
         Parameters
         ----------
@@ -79,7 +105,8 @@ class MeasureMethod(abc.ABC):
 
     @abc.abstractmethod
     def get_measure_result(self, node: int) -> Outcome:
-        """Return the result of a previous measurement.
+        """
+        Return the result of a previous measurement.
 
         Parameters
         ----------
@@ -88,37 +115,65 @@ class MeasureMethod(abc.ABC):
 
         Returns
         -------
-        bool
+        Outcome
             Recorded measurement outcome.
         """
         ...
 
     @abc.abstractmethod
     def set_measure_result(self, node: int, result: Outcome) -> None:
-        """Store the result of a previous measurement.
+        """
+        Store the result of a previous measurement.
 
         Parameters
         ----------
         node : int
             Node label of the measured qubit.
-        result : bool
+        result : Outcome
             Measurement outcome to store.
         """
         ...
 
 
 class DefaultMeasureMethod(MeasureMethod):
-    """Default measurement method implementing standard measurement plane/angle update for MBQC."""
+    """
+    Default measurement method for implementing the standard measurement plane
+    and angle updates for measurement-based quantum computation (MBQC).
+
+    This class provides functionality to perform measurements in the
+    context of MBQC, adhering to the standard approach of updating the
+    measurement plane and angles during the computation process.
+
+    Attributes
+    ----------
+    measurement_plane : Any
+        The current measurement plane used for measurements.
+    measurement_angle : float
+        The current angle for measurements.
+
+    Methods
+    -------
+    update_measurement_plane(plane)
+        Updates the measurement plane to the specified value.
+
+    update_measurement_angle(angle)
+        Updates the measurement angle to the specified value.
+
+    perform_measurement(qubit)
+        Performs a measurement on the specified qubit using the current
+        measurement plane and angle.
+    """
 
     results: dict[int, Outcome]
 
     def __init__(self, results: Mapping[int, Outcome] | None = None):
-        """Initialize with an optional result dictionary.
+        """
+        Initialize with an optional result dictionary.
 
         Parameters
         ----------
         results : Mapping[int, Outcome] | None, optional
-            Mapping of previously measured nodes to their results. If ``None``,
+            A mapping of previously measured nodes to their results. If `None`,
             an empty dictionary is created.
 
         Notes
@@ -131,7 +186,8 @@ class DefaultMeasureMethod(MeasureMethod):
         self.results = {} if results is None else dict(results)
 
     def get_measurement_description(self, cmd: BaseM) -> Measurement:
-        """Return the description of the measurement performed by ``cmd``.
+        """
+        Return the description of the measurement performed by `cmd`.
 
         Parameters
         ----------
@@ -153,7 +209,8 @@ class DefaultMeasureMethod(MeasureMethod):
         return Measurement(angle, measure_update.new_plane)
 
     def get_measure_result(self, node: int) -> Outcome:
-        """Return the result of a previous measurement.
+        """
+        Return the result of a previous measurement.
 
         Parameters
         ----------
@@ -168,22 +225,36 @@ class DefaultMeasureMethod(MeasureMethod):
         return self.results[node]
 
     def set_measure_result(self, node: int, result: Outcome) -> None:
-        """Store the result of a previous measurement.
+        """
+        Store the result of a previous measurement.
 
         Parameters
         ----------
         node : int
             Node label of the measured qubit.
-        result : bool
+        result : Outcome
             Measurement outcome to store.
         """
         self.results[node] = result
 
 
 class PatternSimulator:
-    """MBQC simulator.
+    """
+    MBQC simulator.
 
     Executes the measurement pattern.
+
+    Attributes
+    ----------
+    measurement_pattern : list
+        A sequence of measurements to be executed.
+    qubits : list
+        The qubits that are being simulated.
+
+    Methods
+    -------
+    run():
+        Executes the simulation based on the measurement pattern.
     """
 
     noise_model: NoiseModel | None
@@ -203,25 +274,32 @@ class PatternSimulator:
 
         Parameters
         ----------
-        pattern: :class:`Pattern` object
+        pattern : :class:`Pattern`
             MBQC pattern to be simulated.
-        backend: :class:`Backend` object,
-            or 'statevector', or 'densitymatrix', or 'tensornetwork'
-            simulation backend (optional), default is 'statevector'.
-        measure_method: :class:`MeasureMethod`, optional
+        backend : :class:`Backend` or str, optional
+            Simulation backend, which can be a :class:`Backend` object,
+            or one of the following strings: 'statevector', 'densitymatrix', or 'tensornetwork'.
+            Default is 'statevector'.
+        measure_method : :class:`MeasureMethod`, optional
             Measure method used by the simulator. Default is :class:`DefaultMeasureMethod`.
-        noise_model: :class:`NoiseModel`, optional
-            [Density matrix backend only] Noise model used by the simulator.
-        branch_selector: :class:`BranchSelector`, optional
-            Branch selector used for measurements. Can only be specified if ``backend`` is not an already instantiated :class:`Backend` object.  Default is :class:`RandomBranchSelector`.
-        graph_prep: str, optional
-            [Tensor network backend only] Strategy for preparing the graph state.  See :class:`TensorNetworkBackend`.
+        noise_model : :class:`NoiseModel`, optional
+            Noise model used by the simulator. Applicable only when using the density matrix backend.
+        branch_selector : :class:`BranchSelector`, optional
+            Branch selector used for measurements. This can only be specified if
+            ``backend`` is not an already instantiated :class:`Backend` object.
+            Default is :class:`RandomBranchSelector`.
+        graph_prep : str, optional
+            Strategy for preparing the graph state, applicable only for the tensor network backend.
+            See :class:`TensorNetworkBackend`.
         symbolic : bool, optional
-            [State vector and density matrix backends only] If True, support arbitrary objects (typically, symbolic expressions) in measurement angles.
+            If True, allows support for arbitrary objects (typically symbolic expressions)
+            in measurement angles. Applicable only for state vector and density matrix backends.
 
-        .. seealso:: :class:`graphix.sim.statevec.StatevectorBackend`\
-            :class:`graphix.sim.tensornet.TensorNetworkBackend`\
-            :class:`graphix.sim.density_matrix.DensityMatrixBackend`\
+        See Also
+        --------
+        :class:`graphix.sim.statevec.StatevectorBackend`
+        :class:`graphix.sim.tensornet.TensorNetworkBackend`
+        :class:`graphix.sim.density_matrix.DensityMatrixBackend`
         """
 
         def initialize_backend() -> Backend[BackendState]:
@@ -268,31 +346,61 @@ class PatternSimulator:
 
     @property
     def pattern(self) -> Pattern:
-        """Return the pattern."""
+        """
+        Return the pattern.
+
+        Returns
+        -------
+        Pattern
+            The pattern associated with the simulator.
+        """
         return self.__pattern
 
     @property
     def measure_method(self) -> MeasureMethod:
-        """Return the measure method."""
-        return self.__measure_method
-
-    def set_noise_model(self, model: NoiseModel | None) -> None:
-        """Set a noise model."""
-        self.noise_model = model
-
-    def run(self, input_state: Data = BasicStates.PLUS, rng: Generator | None = None) -> None:
-        """Perform the simulation.
+        """
+        Get the measurement method used in the pattern simulator.
 
         Returns
         -------
-        input_state: Data, optional
-            the output quantum state,
-            in the representation depending on the backend used.
-            Default: ``|+>``.
-        rng: Generator, optional
-            Random-number generator for measurements.
-            This generator is used only in case of random branch selection
-            (see :class:`RandomBranchSelector`).
+        MeasureMethod
+            The current measurement method employed by the pattern simulator.
+        """
+        return self.__measure_method
+
+    def set_noise_model(self, model: NoiseModel | None) -> None:
+        """
+        Set the noise model for the PatternSimulator.
+
+        Parameters
+        ----------
+        model : NoiseModel | None
+            The noise model to be used by the simulator. If None, the default noise model
+            will be applied.
+
+        Returns
+        -------
+        None
+        """
+        self.noise_model = model
+
+    def run(self, input_state: Data = BasicStates.PLUS, rng: Generator | None = None) -> None:
+        """
+        Perform the simulation.
+
+        Parameters
+        ----------
+        input_state : Data, optional
+            The initial quantum state for the simulation. The default value is
+            ``|+>``.
+        rng : Generator, optional
+            A random-number generator for measurements. This generator is used
+            only in the case of random branch selection (see
+            :class:`RandomBranchSelector`).
+
+        Returns
+        -------
+        None
         """
         if input_state is not None:
             self.backend.add_nodes(self.pattern.input_nodes, input_state)

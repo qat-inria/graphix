@@ -21,10 +21,50 @@ if TYPE_CHECKING:
 
 
 class TestChannel:
-    """Tests for Channel class."""
+    """
+    Tests for the Channel class.
+
+    This class contains unit tests to verify the functionality of the
+    Channel class. Each test method prefixed with 'test_' will be run
+    automatically by the testing framework.
+
+    Methods
+    -------
+    test_initial_state()
+        Tests the initial state of a Channel instance.
+
+    test_send_message()
+        Tests the functionality of sending a message through the Channel.
+
+    test_receive_message()
+        Tests the functionality of receiving a message from the Channel.
+
+    test_close_channel()
+        Tests the behavior of closing the Channel.
+
+    test_channel_state_after_close()
+        Tests that the Channel behaves as expected after it has been closed.
+    """
 
     def test_init_with_data_success(self, fx_rng: Generator) -> None:
-        """Test for successful intialization."""
+        """
+        Test the successful initialization of the Channel class with data.
+
+        This method verifies that the Channel class can be correctly initialized
+        when provided with valid data. It ensures that all attributes are set
+        appropriately and that the object behaves as expected.
+
+        Parameters
+        ----------
+        fx_rng : Generator
+            A random number generator used to produce test data for the
+            initialization.
+
+        Notes
+        -----
+        This test case is part of the unit tests for the Channel class and
+        should be run in the appropriate test environment.
+        """
         prob = fx_rng.uniform()
         mychannel = KrausChannel(
             [
@@ -37,7 +77,23 @@ class TestChannel:
         assert len(mychannel) == 2
 
     def test_init_with_data_fail(self, fx_rng: Generator) -> None:
-        """Test for unsuccessful intialization."""
+        """
+        Test for unsuccessful initialization of the Channel class.
+
+        This test verifies that the Channel class does not initialize successfully
+        when provided with invalid data. It checks for proper exception handling
+        and ensures that the object is not created when expected to fail.
+
+        Parameters
+        ----------
+        fx_rng : Generator
+            A random number generator used for creating test data.
+
+        Raises
+        ------
+        Exception
+            If the initialization is successful when it should fail.
+        """
         prob = fx_rng.uniform()
 
         # empty data

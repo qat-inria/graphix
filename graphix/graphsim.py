@@ -1,4 +1,33 @@
-"""Graph simulator."""
+"""
+Graph simulator.
+
+This module provides functionality for simulating and analyzing graphs.
+It includes various algorithms and tools for graph operations such as
+traversal, searching, and manipulation of graph structures.
+
+Modules:
+--------
+- Graph: Contains the implementation of the graph data structure.
+- Algorithms: Includes functions for common graph algorithms such as
+  DFS, BFS, Dijkstra's algorithm and more.
+- Utilities: Helper functions for graph visualization and other utilities.
+
+Usage:
+------
+To use this module, import the required classes or functions and
+instantiate the graph as needed.
+
+Example:
+--------
+```python
+from graph_simulator import Graph
+
+g = Graph()
+g.add_edge(1, 2)
+g.add_edge(2, 3)
+print(g.bfs(1))
+```
+"""
 
 from __future__ import annotations
 
@@ -27,7 +56,36 @@ else:
 
 
 class MBQCGraphNode(TypedDict):
-    """MBQC graph node attributes."""
+    """
+    Attributes of a Measurement-Based Quantum Computing (MBQC) graph node.
+
+    This class represents a node in a graph used for
+    Measurement-Based Quantum Computing (MBQC) which includes
+    attributes defining the node's state and connections
+    to other nodes in the graph.
+
+    Attributes
+    ----------
+    id : int
+        Unique identifier for the node.
+    state : str
+        The quantum state associated with the node.
+    neighbors : list of MBQCGraphNode
+        A list of nodes that are directly connected to this node.
+    measurement_result : bool or None
+        The result of the measurement performed on this node,
+        if applicable. Defaults to None if no measurement has
+        been performed.
+
+    Methods
+    -------
+    add_neighbor(node):
+        Adds a neighboring node to this node's list of neighbors.
+    __str__():
+        Returns a string representation of the node.
+    __repr__():
+        Returns a formal string representation of the node.
+    """
 
     sign: bool
     loop: bool
@@ -35,17 +93,24 @@ class MBQCGraphNode(TypedDict):
 
 
 class GraphState(Graph):
-    """Graph state simulator implemented with :mod:`networkx`.
+    """
+    Graph state simulator implemented with :mod:`networkx`.
 
-    Performs Pauli measurements on graph states.
+    This class performs Pauli measurements on graph states.
 
-    ref: M. Elliot, B. Eastin & C. Caves, JPhysA 43, 025301 (2010)
-    and PRA 77, 042307 (2008)
+    References
+    ----------
+    M. Elliot, B. Eastin & C. Caves, J. Phys. A 43, 025301 (2010) and
+    PRA 77, 042307 (2008).
 
-    Each node has attributes:
-        :*hollow*: True if node is hollow (has local H operator)
-        :*sign*: True if node has negative sign (local Z operator)
-        :*loop*: True if node has loop (local S operator)
+    Attributes
+    ----------
+    hollow : bool
+        True if the node is hollow (has a local H operator).
+    sign : bool
+        True if the node has a negative sign (local Z operator).
+    loop : bool
+        True if the node has a loop (local S operator).
     """
 
     nodes: functools.cached_property[Mapping[int, MBQCGraphNode]]  # type: ignore[assignment]
@@ -56,16 +121,17 @@ class GraphState(Graph):
         edges: Iterable[tuple[int, int]] | None = None,
         vops: Mapping[int, Clifford] | None = None,
     ) -> None:
-        """Instantiate a graph simulator.
+        """
+        Instantiate a graph simulator.
 
         Parameters
         ----------
-        nodes : Iterable[int]
-            A container of nodes
-        edges : Iterable[tuple[int, int]]
-            list of tuples (i,j) for pairs to be entangled.
-        vops : Mapping[int, Clifford]
-            dict of local Clifford gates with keys for node indices and Cliffords
+        nodes : Iterable[int], optional
+            A container of nodes. If None, the graph will be initialized with no nodes.
+        edges : Iterable[tuple[int, int]], optional
+            A list of tuples (i, j) representing pairs of nodes to be entangled. If None, no edges will be created.
+        vops : Mapping[int, Clifford], optional
+            A dictionary of local Clifford gates, where the keys are node indices and the values are the corresponding Clifford operations. If None, no local operations will be assigned.
         """
         super().__init__()
         if nodes is not None:
@@ -81,7 +147,28 @@ class GraphState(Graph):
         nodes_for_adding: Iterable[int | tuple[int, MBQCGraphNode]],  # type: ignore[override]
         **attr: Any,
     ) -> None:
-        """Wrap `networkx.Graph.add_nodes_from` to initialize MBQCGraphNode attributes."""
+        """
+        Add nodes to the graph.
+
+        This method wraps the `networkx.Graph.add_nodes_from` function to initialize
+        attributes of `MBQCGraphNode`.
+
+        Parameters
+        ----------
+        nodes_for_adding : iterable of int or tuple of (int, MBQCGraphNode)
+            An iterable of nodes to be added. Each node can either be an integer
+            representing the node identifier, or a tuple consisting of an integer
+            and an instance of `MBQCGraphNode`.
+
+        **attr : Any
+            Additional attributes to initialize for the nodes being added.
+
+        Returns
+        -------
+        None
+            This method does not return any value, it modifies the graph state
+            in place.
+        """
         nodes_for_adding = list(nodes_for_adding)
         super().add_nodes_from(nodes_for_adding, **attr)  # type: ignore[arg-type]
         for data in nodes_for_adding:
@@ -106,23 +193,59 @@ class GraphState(Graph):
         node_for_adding: int,
         **attr: Any,
     ) -> None:
-        """Wrap `networkx.Graph.add_node` to initialize MBQCGraphNode attributes."""
+        """
+        Add a node to the graph, wrapping the `networkx.Graph.add_node` method.
+
+        This method initializes attributes for the node as specified by
+        keyword arguments, which can include any additional properties
+        needed for the `MBQCGraphNode`.
+
+        Parameters
+        ----------
+        node_for_adding : int
+            The identifier for the node to be added to the graph.
+        **attr : Any
+            Additional attributes to initialize for the MBQCGraphNode.
+
+        Returns
+        -------
+        None
+        """
         self.add_nodes_from((node_for_adding,), **attr)
 
     def local_complement(self, node: int) -> None:
-        """Perform local complementation of a graph."""
+        """
+        Perform local complementation of a graph.
+
+        Parameters
+        ----------
+        node : int
+            The index of the node on which to perform the local complementation.
+
+        Returns
+        -------
+        None
+            This method modifies the graph in place and does not return a value.
+
+        Notes
+        -----
+        Local complementation at a node involves taking the induced subgraph formed by the neighbors of the node,
+        and replacing it with its complement.
+        """
         g = self.subgraph(self.neighbors(node))
         g_new: nx.Graph[int] = nx.complement(g)
         self.remove_edges_from(g.edges)
         self.add_edges_from(g_new.edges)
 
     def apply_vops(self, vops: Mapping[int, Clifford]) -> None:
-        """Apply local Clifford operators to the graph state from a dictionary.
+        """
+        Apply local Clifford operators to the graph state from a dictionary.
 
         Parameters
         ----------
         vops : Mapping[int, Clifford]
-            dict containing node indices as keys and local Clifford
+            A dictionary containing node indices as keys and local Clifford operators
+            as values.
 
         Returns
         -------
@@ -140,12 +263,13 @@ class GraphState(Graph):
                     raise RuntimeError
 
     def get_vops(self) -> dict[int, Clifford]:
-        """Apply local Clifford operators to the graph state from a dictionary.
+        """
+        Apply local Clifford operators to the graph state from a dictionary.
 
         Returns
         -------
-            vops : dict[int, Clifford]
-                dict containing node indices as keys and local Cliffords
+        vops : dict[int, Clifford]
+            A dictionary containing node indices as keys and local Clifford operators as values.
         """
         vops: dict[int, Clifford] = {}
         for i in self.nodes:
@@ -160,12 +284,13 @@ class GraphState(Graph):
         return vops
 
     def flip_fill(self, node: int) -> None:
-        """Flips the fill (local H) of a node.
+        """
+        Flips the fill (local Hamiltonian) of a specified node in the graph.
 
         Parameters
         ----------
         node : int
-            graph node to flip the fill
+            The graph node for which the fill is to be flipped.
 
         Returns
         -------
@@ -174,15 +299,17 @@ class GraphState(Graph):
         self.nodes[node]["hollow"] = not self.nodes[node]["hollow"]
 
     def flip_sign(self, node: int) -> None:
-        """Flip the sign (local Z) of a node.
+        """
+        Flip the sign (local Z) of a node.
 
-        Note that application of Z gate is different from `flip_sign`
-        if there exist an edge from the node.
+        This method flips the sign of the specified node in the graph state.
+        Note that the application of the Z gate is different from `flip_sign`
+        if there exists an edge from the node.
 
         Parameters
         ----------
         node : int
-            graph node to flip the sign
+            The graph node for which to flip the sign.
 
         Returns
         -------
@@ -191,17 +318,18 @@ class GraphState(Graph):
         self.nodes[node]["sign"] = not self.nodes[node]["sign"]
 
     def advance(self, node: int) -> None:
-        """Flip the loop (local S) of a node.
+        """
+        Flip the loop (local S) of a specified node in the graph.
 
-        If the loop already exist, sign is also flipped,
-        reflecting the relation SS=Z.
-        Note that application of S gate is different from `advance`
-        if there exist an edge from the node.
+        This method modifies the state of the loop associated with the given node.
+        If the loop already exists, the sign is flipped, reflecting the relation
+        SS = Z. Note that the application of the S gate differs from `advance`
+        if there is an edge connected to the node.
 
         Parameters
         ----------
         node : int
-            graph node to advance the loop.
+            The graph node for which to advance the loop.
 
         Returns
         -------
@@ -214,12 +342,13 @@ class GraphState(Graph):
             self.nodes[node]["loop"] = True
 
     def h(self, node: int) -> None:
-        """Apply H gate to a qubit (node).
+        """
+        Apply the H gate to a specified qubit (node).
 
         Parameters
         ----------
         node : int
-            graph node to apply H gate
+            The index of the graph node to which the H gate will be applied.
 
         Returns
         -------
@@ -228,12 +357,13 @@ class GraphState(Graph):
         self.flip_fill(node)
 
     def s(self, node: int) -> None:
-        """Apply S gate to a qubit (node).
+        """
+        Apply the S gate to a specified qubit (node).
 
         Parameters
         ----------
         node : int
-            graph node to apply S gate
+            The index of the graph node to which the S gate will be applied.
 
         Returns
         -------
@@ -257,12 +387,13 @@ class GraphState(Graph):
             self.advance(node)
 
     def z(self, node: int) -> None:
-        """Apply Z gate to a qubit (node).
+        """
+        Apply the Z gate to a qubit (node).
 
         Parameters
         ----------
         node : int
-            graph node to apply Z gate
+            The graph node to which the Z gate will be applied.
 
         Returns
         -------
@@ -277,14 +408,15 @@ class GraphState(Graph):
             self.flip_sign(node)
 
     def equivalent_graph_e1(self, node: int) -> None:
-        """Tranform a graph state to a different graph state representing the same stabilizer state.
+        """
+        Transform a graph state to a different graph state representing the same stabilizer state.
 
-        This rule applies only to a node with loop.
+        This transformation is applicable only to a node that has a loop.
 
         Parameters
         ----------
-        node1 : int
-            A graph node with a loop to apply rule E1
+        node : int
+            A graph node with a loop to which rule E1 will be applied.
 
         Returns
         -------
@@ -302,14 +434,17 @@ class GraphState(Graph):
                 self.flip_sign(i)
 
     def equivalent_graph_e2(self, node1: int, node2: int) -> None:
-        """Tranform a graph state to a different graph state representing the same stabilizer state.
+        """
+        Transform a graph state to a different graph state representing the same stabilizer state.
 
-        This rule applies only to two connected nodes without loop.
+        This transformation applies only to two connected nodes without a loop.
 
         Parameters
         ----------
-        node1, node2 : int
-            connected graph nodes to apply rule E2
+        node1 : int
+            The first connected graph node to apply rule E2.
+        node2 : int
+            The second connected graph node to apply rule E2.
 
         Returns
         -------
@@ -339,22 +474,23 @@ class GraphState(Graph):
                 self.flip_sign(i)
 
     def equivalent_fill_node(self, node: int) -> int:
-        """Fill the chosen node by graph transformation rules E1 and E2.
+        """
+        Fill the chosen node by applying graph transformation rules E1 and E2.
 
-        If the selected node is hollow and isolated, it cannot be filled
-        and warning is thrown.
+        If the selected node is hollow and isolated, it cannot be filled,
+        and a warning is raised.
 
         Parameters
         ----------
         node : int
-            node to fill.
+            The index of the node to fill.
 
         Returns
         -------
         result : int
-            if the selected node is hollow and isolated, *result* is 1.
-            if filled and isolated, 2.
-            otherwise it is 0.
+            - 1 if the selected node is hollow and isolated.
+            - 2 if the node is filled and isolated.
+            - 0 otherwise.
         """
         if self.nodes[node]["hollow"]:
             if self.nodes[node]["loop"]:
@@ -377,22 +513,25 @@ class GraphState(Graph):
         return 0
 
     def measure_x(self, node: int, choice: Outcome = 0) -> Outcome:
-        """Perform measurement in X basis.
+        """
+        Perform measurement in the X basis.
 
-        According to original paper, we realise X measurement by
-        applying H gate to the measured node before Z measurement.
+        According to the original paper, X measurement is realized by
+        applying the Hadamard (H) gate to the measured node before
+        performing a Z measurement.
 
         Parameters
         ----------
         node : int
-            qubit index to be measured
-        choice : int, 0 or 1
-            choice of measurement outcome. observe (-1)^choice
+            The index of the qubit to be measured.
+        choice : Outcome, optional
+            The choice of measurement outcome. Observes (-1) ** choice.
+            The default is 0.
 
         Returns
         -------
-        result : int
-            measurement outcome. 0 or 1.
+        Outcome
+            The measurement outcome, which is either 0 or 1.
         """
         if choice not in {0, 1}:
             raise ValueError("choice must be 0 or 1")
@@ -410,22 +549,25 @@ class GraphState(Graph):
         return self.measure_z(node, choice=choice)
 
     def measure_y(self, node: int, choice: Outcome = 0) -> Outcome:
-        """Perform measurement in Y basis.
+        """
+        Perform measurement in the Y basis.
 
-        According to original paper, we realise Y measurement by
-        applying S,Z and H gate to the measured node before Z measurement.
+        According to the original paper, we realize Y measurement by
+        applying S, Z, and H gates to the measured node before performing
+        a Z measurement.
 
         Parameters
         ----------
         node : int
-            qubit index to be measured
-        choice : int, 0 or 1
-            choice of measurement outcome. observe (-1)^choice
+            The index of the qubit to be measured.
+        choice : Outcome, optional
+            The choice of measurement outcome. The observable is
+            (-1) ** choice. Default is 0.
 
         Returns
         -------
-        result : int
-            measurement outcome. 0 or 1.
+        Outcome
+            The measurement outcome, which will be either 0 or 1.
         """
         if choice not in {0, 1}:
             raise ValueError("choice must be 0 or 1")
@@ -435,22 +577,24 @@ class GraphState(Graph):
         return self.measure_z(node, choice=choice)
 
     def measure_z(self, node: int, choice: Outcome = 0) -> Outcome:
-        """Perform measurement in Z basis.
+        """
+        Perform measurement in the Z basis.
 
-        To realize the simple Z measurement on undecorated graph state,
-        we first fill the measured node (remove local H gate)
+        This method realizes a simple Z measurement on an undecorated graph state
+        by filling the measured node and removing the local Hadamard gate.
 
         Parameters
         ----------
         node : int
-            qubit index to be measured
-        choice : int, 0 or 1
-            choice of measurement outcome. observe (-1)^choice
+            The index of the qubit to be measured.
+        choice : Outcome, optional
+            The choice of measurement outcome, where the observed outcome is
+            (-1) ** choice. The default is 0.
 
         Returns
         -------
-        result : int
-            measurement outcome. 0 or 1.
+        result : Outcome
+            The measurement outcome, which will be either 0 or 1.
         """
         if choice not in {0, 1}:
             raise ValueError("choice must be 0 or 1")
@@ -463,16 +607,18 @@ class GraphState(Graph):
         return result
 
     def draw(self, fill_color: str = "C0", **kwargs: dict[str, Any]) -> None:
-        """Draw decorated graph state.
+        """
+        Draw a decorated graph state.
 
-        Negative nodes are indicated by negative sign of node labels.
+        Negative nodes are indicated by a negative sign on the node labels.
 
         Parameters
         ----------
-        fill_color : str
-            optional, fill color of nodes
-        kwargs :
-            optional, additional arguments to supply networkx.draw().
+        fill_color : str, optional
+            The fill color of the nodes. Default is "C0".
+
+        kwargs : keyword arguments, optional
+            Additional arguments to be passed to `networkx.draw()`.
         """
         nqubit = len(self.nodes)
         nodes = list(self.nodes)
@@ -492,7 +638,14 @@ class GraphState(Graph):
         nx.draw(g, labels=labels, node_color=colors, edgecolors="k", **kwargs)
 
     def to_statevector(self) -> Statevec:
-        """Convert the graph state into a state vector."""
+        """
+        Convert the graph state into a state vector.
+
+        Returns
+        -------
+        Statevec
+            The state vector representation of the graph state.
+        """
         node_list = list(self.nodes)
         nqubit = len(self.nodes)
         gstate = Statevec(nqubit=nqubit)
@@ -513,5 +666,14 @@ class GraphState(Graph):
         return gstate
 
     def get_isolates(self) -> list[int]:
-        """Return a list of isolated nodes (nodes with no edges)."""
+        """
+        Returns a list of isolated nodes in the graph.
+
+        An isolated node is defined as a node that has no edges connected to it.
+
+        Returns
+        -------
+        list[int]
+            A list of the identifiers of isolated nodes.
+        """
         return list(nx.isolates(self))

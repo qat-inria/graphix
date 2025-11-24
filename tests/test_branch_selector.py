@@ -26,13 +26,57 @@ NB_ROUNDS = 100
 
 @dataclass
 class CheckedBranchSelector(RandomBranchSelector):
-    """Random branch selector that verifies that expectation values match the expected ones."""
+    """
+    Random branch selector that verifies that expectation values match the expected ones.
+
+    This class is responsible for selecting branches in a random manner while ensuring that
+    the selected branches' expectation values adhere to specified criteria. It performs
+    checks to validate these expectation values against pre-defined expectations to ensure
+    correctness in the branch selection process.
+
+    Parameters
+    ----------
+    expected_values : dict
+        A dictionary mapping branch identifiers to their expected expectation values.
+    random_state : int or None, optional
+        Seed for the random number generator. If None, the random generator is not seeded.
+        Default is None.
+
+    Attributes
+    ----------
+    branches : list
+        List of available branches to choose from.
+    selected_branch : object
+        The branch that was last selected by the selector.
+
+    Methods
+    -------
+    select_branch():
+        Select a branch at random and check its expectation value against the expected values.
+    """
 
     expected: Mapping[int, float] = dataclasses.field(default_factory=dict)
 
     @override
     def measure(self, qubit: int, f_expectation0: Callable[[], float], rng: Generator | None = None) -> Outcome:
-        """Return the measurement outcome of ``qubit``."""
+        """
+        Measure the specified qubit and return the measurement outcome.
+
+        Parameters
+        ----------
+        qubit : int
+            The index of the qubit to be measured.
+        f_expectation0 : Callable[[], float]
+            A callable that returns the expectation value for the measurement when the qubit is in the |0⟩ state.
+        rng : Generator | None, optional
+            An optional random number generator to control randomness in the measurement process.
+            If None, a default generator will be used.
+
+        Returns
+        -------
+        Outcome
+            The measurement outcome of the specified qubit.
+        """
         expectation0 = f_expectation0()
         assert math.isclose(expectation0, self.expected[qubit])
         return super().measure(qubit, lambda: expectation0)

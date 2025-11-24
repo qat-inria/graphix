@@ -1,4 +1,41 @@
-"""Tensor Network Simulator for MBQC."""
+"""
+Tensor Network Simulator for Measurement-Based Quantum Computing (MBQC).
+
+This module provides tools for simulating quantum circuits using tensor network methods,
+specifically tailored for the measurement-based model of quantum computation.
+It allows for the representation and manipulation of quantum states as tensor networks,
+facilitating the analysis and execution of MBQC protocols.
+
+Usage
+-----
+To use this module, import the necessary classes and functions, and create a tensor network
+representation of your quantum state. You can then perform measurements and simulate
+quantum gates within a measurement-based framework.
+
+Functions and Classes
+---------------------
+- [List the functions and classes available in this module, if applicable]
+
+Examples
+--------
+1. Import the module:
+   ```python
+   from tensor_network_simulator import MBQC
+   ```
+
+2. Create and manipulate a tensor network:
+   ```python
+   network = MBQC.TensorNetwork(...)
+   ```
+
+3. Simulate measurements:
+   ```python
+   result = network.measure(...)
+   ```
+
+This module is intended for researchers and practitioners in quantum computing
+seeking to explore the capabilities of MBQC through tensor network methods.
+"""
 
 from __future__ import annotations
 
@@ -47,7 +84,35 @@ else:
 
 
 class MBQCTensorNet(BackendState, TensorNetwork):
-    """Tensor Network Simulator interface for MBQC patterns, using quimb.tensor.core.TensorNetwork."""
+    """
+    Tensor Network Simulator interface for Measurement-Based Quantum Computation (MBQC) patterns.
+
+    This class utilizes the `quimb.tensor.core.TensorNetwork` to facilitate
+    the simulation of quantum circuits and operations relevant to MBQC.
+
+    Attributes
+    ----------
+    tensor_network : TensorNetwork
+        The underlying tensor network representing the quantum state.
+    qubits : int
+        Number of qubits in the quantum circuit.
+    measurements : list of tuples
+        A list specifying the measurement outcomes and their corresponding qubit indices.
+
+    Methods
+    -------
+    add_qubit():
+        Adds a qubit to the tensor network.
+
+    apply_gate(gate, qubit_indices):
+        Applies a quantum gate to the specified qubits in the tensor network.
+
+    measure(qubit_index):
+        Performs a measurement on the specified qubit and updates the tensor network.
+
+    simulate():
+        Runs the simulation of the quantum circuit based on the current state of the tensor network.
+    """
 
     _dangling: dict[str, str]
 
@@ -65,14 +130,18 @@ class MBQCTensorNet(BackendState, TensorNetwork):
 
         Parameters
         ----------
-        graph_nodes (optional): list of int
-            node indices of the graph state.
-        graph_edges (optional) : list of tuple of int
-            edge indices of the graph state.
-        default_output_nodes : list of int
-            output node indices at the end of MBQC operations, if known in advance.
-        ts (optional): quimb.tensor.core.TensorNetwork or empty list
-            optional initial state.
+        branch_selector : BranchSelector
+            Selector for branches in the MBQC.
+        graph_nodes : Iterable[int] or None, optional
+            List of integer node indices of the graph state.
+        graph_edges : Iterable[tuple[int, int]] or None, optional
+            List of tuples representing edge indices of the graph state.
+        default_output_nodes : Iterable[int] or None, optional
+            Output node indices at the end of MBQC operations, if known in advance.
+        ts : list[TensorNetwork] or TensorNetwork or None, optional
+            Optional initial state(s) of the tensor network. Can be a single tensor network or a list of them.
+        virtual : bool, optional
+            Flag indicating if the network operates in a virtual mode. Default is False.
         """
         if ts is None:
             ts = []
@@ -85,17 +154,18 @@ class MBQCTensorNet(BackendState, TensorNetwork):
         self.__branch_selector = branch_selector
 
     def get_open_tensor_from_index(self, index: int | str) -> npt.NDArray[np.complex128]:
-        """Get tensor specified by node index. The tensor has a dangling edge.
+        """
+        Get tensor specified by node index. The tensor has a dangling edge.
 
         Parameters
         ----------
-        index : str
-            node index
+        index : int or str
+            Node index.
 
         Returns
         -------
-        numpy.ndarray :
-            Specified tensor
+        numpy.ndarray
+            Specified tensor with complex data type.
         """
         if isinstance(index, int):
             index = str(index)
@@ -106,15 +176,24 @@ class MBQCTensorNet(BackendState, TensorNetwork):
         return tensor.data.astype(dtype=np.complex128)
 
     def add_qubit(self, index: int, state: PrepareState = "plus") -> None:
-        """Add a single qubit to the network.
+        """
+        Add a single qubit to the network.
 
         Parameters
         ----------
         index : int
-            index of the new qubit.
-        state (optional): str or 2-element np.ndarray
-            initial state of the new qubit.
-            "plus", "minus", "zero", "one", "iplus", "iminus", or 1*2 np.ndarray (arbitrary state).
+            Index of the new qubit.
+        state : PrepareState, optional
+            Initial state of the new qubit. Can be one of the following:
+            - "plus"
+            - "minus"
+            - "zero"
+            - "one"
+            - "iplus"
+            - "iminus"
+            - or a 1x2 numpy.ndarray representing an arbitrary state.
+
+            The default is "plus".
         """
         ind = gen_str()
         tag = str(index)
@@ -143,16 +222,21 @@ class MBQCTensorNet(BackendState, TensorNetwork):
         self._dangling[tag] = ind
 
     def evolve_single(self, index: int, arr: npt.NDArray[np.complex128], label: str = "U") -> None:
-        """Apply single-qubit operator to a qubit with the given index.
+        """
+        Apply a single-qubit operator to a qubit at the specified index.
 
         Parameters
         ----------
         index : int
-            qubit index.
-        arr : 2*2 numpy.ndarray
-            single-qubit operator.
-        label (optional): str
-            label for the gate.
+            The index of the qubit to which the operator will be applied.
+        arr : npt.NDArray[np.complex128]
+            A 2x2 numpy array representing the single-qubit operator.
+        label : str, optional
+            A label for the gate, defaults to "U".
+
+        Returns
+        -------
+        None
         """
         old_ind = self._dangling[str(index)]
         tid = list(self._get_tids_from_inds(old_ind))
@@ -170,14 +254,16 @@ class MBQCTensorNet(BackendState, TensorNetwork):
         self.add_tensor(node_ts)
 
     def add_qubits(self, indices: Sequence[int], states: PrepareState | Iterable[PrepareState] = "plus") -> None:
-        """Add qubits to the network.
+        """
+        Add qubits to the network.
 
         Parameters
         ----------
-        indices : iterator of int
-            indices of the new qubits.
-        states (optional): Data
-            initial state or list of initial states of the new qubits.
+        indices : Sequence[int]
+            Indices of the new qubits.
+        states : PrepareState or Iterable[PrepareState], optional
+            Initial state or list of initial states of the new qubits.
+            Defaults to "plus".
         """
         if isinstance(states, str):
             states_iter: list[PrepareState] = [states] * len(indices)
@@ -208,28 +294,30 @@ class MBQCTensorNet(BackendState, TensorNetwork):
         outcome: Outcome | None = None,
         rng: Generator | None = None,
     ) -> Outcome:
-        """Measure a node in specified basis. Note this does not perform the partial trace.
+        """
+        Measure a node in a specified basis. Note that this does not perform the partial trace.
 
         Parameters
         ----------
         index : int
-            index of the node to be measured.
-        basis : str or np.ndarray
-            default "Z".
-            measurement basis, "Z" or "X" or "Y" for Pauli basis measurements.
-            1*2 numpy.ndarray for arbitrary measurement bases.
-        bypass_probability_calculation : bool
-            default True.
-            if True, skip the calculation of the probability of the measurement
-            result and use equal probability for each result.
-            if False, calculate the probability of the measurement result from the state.
-        outcome : int (0 or 1)
-            User-chosen measurement result, giving the outcome of (-1)^{outcome}.
+            Index of the node to be measured.
+        basis : str or np.ndarray, optional
+            Measurement basis, which can be "Z", "X", or "Y" for Pauli basis measurements,
+            or a 1x2 numpy.ndarray for arbitrary measurement bases. Default is "Z".
+        bypass_probability_calculation : bool, optional
+            If True (default), skips the calculation of the probability of the measurement
+            result and uses equal probability for each outcome. If False, calculates the
+            probability of the measurement result from the state.
+        outcome : Outcome or None, optional
+            User-chosen measurement result, specifying the outcome of (-1)^{outcome}.
+            Default is None.
+        rng : Generator or None, optional
+            Random number generator for stochastic measurements. Default is None.
 
         Returns
         -------
-        int
-            measurement result.
+        Outcome
+            The measurement result.
         """
         if bypass_probability_calculation:
             result = outcome if outcome is not None else self.__branch_selector.measure(index, lambda: 0.5, rng=rng)
@@ -264,16 +352,20 @@ class MBQCTensorNet(BackendState, TensorNetwork):
         return result
 
     def set_graph_state(self, nodes: Iterable[int], edges: Iterable[tuple[int, int]]) -> None:
-        """Prepare the graph state without directly applying CZ gates.
+        """
+        Prepare the graph state without directly applying CZ gates.
 
         Parameters
         ----------
-        nodes : iterator of int
-            set of the nodes
-        edges : iterator of tuple
-            set of the edges
+        nodes : iterable of int
+            A set of nodes in the graph.
+        edges : iterable of tuple of int
+            A set of edges represented as tuples, where each tuple contains two integers
+            indicating the nodes connected by the edge.
 
-        .. seealso:: :meth:`~graphix.sim.tensornet.TensorNetworkBackend.__init__()`
+        See Also
+        --------
+        :meth:`~graphix.sim.tensornet.TensorNetworkBackend.__init__()`
         """
         ind_dict: dict[int, list[str]] = {}
         vec_dict: dict[int, list[bool]] = {}
@@ -319,21 +411,23 @@ class MBQCTensorNet(BackendState, TensorNetwork):
     def get_basis_coefficient(
         self, basis: int | str, normalize: bool = True, indices: Sequence[int] | None = None
     ) -> complex:
-        """Calculate the coefficient of a given computational basis.
+        """
+        Calculate the coefficient of a given computational basis.
 
         Parameters
         ----------
         basis : int or str
-            computational basis expressed in binary (str) or integer, e.g. 101 or 5.
-        normalize (optional): bool
-            if True, normalize the coefficient by the norm of the entire state.
-        indices (optional): list of int
-            target qubit indices to compute the coefficients, default is the MBQC output nodes (self.default_output_nodes).
+            Computational basis expressed in binary (str) or integer, e.g., '101' or 5.
+        normalize : bool, optional
+            If True, normalize the coefficient by the norm of the entire state. Default is True.
+        indices : Sequence[int], optional
+            Target qubit indices to compute the coefficients. Default is the MBQC output nodes
+            (self.default_output_nodes).
 
         Returns
         -------
         coef : complex
-            coefficient
+            The coefficient associated with the specified basis.
         """
         if indices is None:
             indices = self._require_default_output_nodes()
@@ -383,19 +477,20 @@ class MBQCTensorNet(BackendState, TensorNetwork):
         return abs(coef) ** 2
 
     def to_statevector(self, indices: Sequence[int] | None = None) -> npt.NDArray[np.complex128]:
-        """Retrieve the statevector from the tensornetwork.
+        """
+        Retrieve the statevector from the tensor network.
 
-        This method tends to be slow however we plan to parallelize this.
+        This method tends to be slow; however, there are plans to parallelize its execution.
 
         Parameters
         ----------
-        indices (optional): list of int
-            target qubit indices. Default is the MBQC output nodes (self.default_output_nodes).
+        indices : Sequence[int], optional
+            List of target qubit indices. Default is the MBQC output nodes (self.default_output_nodes).
 
         Returns
         -------
-        numpy.ndarray :
-            statevector
+        npt.NDArray[np.complex128]
+            The statevector obtained from the tensor network.
         """
         n_qubit = len(self._require_default_output_nodes()) if indices is None else len(indices)
         statevec: npt.NDArray[np.complex128] = np.zeros(2**n_qubit, np.complex128)
@@ -404,16 +499,33 @@ class MBQCTensorNet(BackendState, TensorNetwork):
         return statevec / np.linalg.norm(statevec)
 
     def flatten(self) -> npt.NDArray[np.complex128]:
-        """Return flattened statevector."""
-        return self.to_statevector().flatten()
+        """
+        Return a flattened state vector.
 
-    def get_norm(self, optimize: str | PathOptimizer | None = None) -> float:
-        """Calculate the norm of the state.
+        The state vector is transformed into a one-dimensional array while retaining
+        its complex number format. This is useful for various calculations and
+        manipulations where a flat representation of the state is needed.
 
         Returns
         -------
-        float :
-            norm of the state
+        npt.NDArray[np.complex128]
+            A one-dimensional array containing the flattened state vector elements.
+        """
+        return self.to_statevector().flatten()
+
+    def get_norm(self, optimize: str | PathOptimizer | None = None) -> float:
+        """
+        Calculate the norm of the state.
+
+        Parameters
+        ----------
+        optimize : str or PathOptimizer, optional
+            The optimization method to use. If None, no optimization is performed.
+
+        Returns
+        -------
+        float
+            The norm of the state.
         """
         tn_cp1 = self.copy()
         tn_cp2 = tn_cp1.conj()
@@ -429,22 +541,25 @@ class MBQCTensorNet(BackendState, TensorNetwork):
         output_node_indices: Iterable[int] | None = None,
         optimize: str | PathOptimizer | None = None,
     ) -> float:
-        """Calculate expectation value of the given operator.
+        """
+        Calculate the expectation value of the given operator.
 
         Parameters
         ----------
         op : numpy.ndarray
-            single- or multi-qubit Hermitian operator
-        qubit_indices : list of int
-            Applied positions of **logical** qubits.
-        output_node_indices (optional): list of int
-            Indices of nodes in the entire TN, that remain unmeasured after MBQC operations.
-            Default is the output nodes specified in measurement pattern (self.default_output_nodes).
+            Single- or multi-qubit Hermitian operator.
+        qubit_indices : Sequence[int]
+            Indices of the logical qubits where the operator is applied.
+        output_node_indices : Iterable[int] or None, optional
+            Indices of nodes in the entire tensor network that remain unmeasured after MBQC operations.
+            Defaults to the output nodes specified in the measurement pattern (self.default_output_nodes).
+        optimize : str, PathOptimizer or None, optional
+            Optimization method to be used. Defaults to None.
 
         Returns
         -------
-        float :
-            Expectation value
+        float
+            The expectation value of the operator.
         """
         out_inds = self._require_default_output_nodes() if output_node_indices is None else list(output_node_indices)
         target_nodes = [out_inds[ind] for ind in qubit_indices]
@@ -477,17 +592,21 @@ class MBQCTensorNet(BackendState, TensorNetwork):
         return exp_val / norm**2
 
     def evolve(self, operator: npt.NDArray[np.complex128], qubit_indices: list[int], decompose: bool = True) -> None:
-        """Apply an arbitrary operator to the state.
+        """
+        Apply an arbitrary operator to the quantum state.
 
         Parameters
         ----------
-        operator : numpy.ndarray
-            operator.
+        operator : numpy.ndarray, shape (N, N)
+            The operator to be applied to the quantum state. It is assumed to be a square matrix with complex entries.
         qubit_indices : list of int
-            Applied positions of **logical** qubits.
+            The positions of the logical qubits to which the operator will be applied.
         decompose : bool, optional
-            default True
-            whether a given operator will be decomposed or not. If True, operator is decomposed into Matrix Product Operator(MPO)
+            Whether to decompose the given operator into a Matrix Product Operator (MPO). Default is True.
+
+        Notes
+        -----
+        If `decompose` is set to True, the operator will be decomposed. Otherwise, it will be applied directly to the state.
         """
         if len(operator.shape) != len(qubit_indices) * 2:
             shape = [2 for _ in range(2 * len(qubit_indices))]
@@ -523,18 +642,23 @@ class MBQCTensorNet(BackendState, TensorNetwork):
 
     @override
     def copy(self, virtual: bool = False, deep: bool = False) -> MBQCTensorNet:
-        """Return the copy of this object.
+        """
+        Return a copy of this object.
 
         Parameters
         ----------
+        virtual : bool, optional
+            Defaults to False.
+            Whether to create a virtual copy (shared data) or not.
+
         deep : bool, optional
             Defaults to False.
             Whether to copy the underlying data as well.
 
         Returns
         -------
-        TensorNetworkBackend :
-            duplicated object
+        MBQCTensorNet
+            A duplicated object of the current instance.
         """
         if deep:
             return deepcopy(self)
@@ -542,27 +666,30 @@ class MBQCTensorNet(BackendState, TensorNetwork):
 
 
 def _get_decomposed_cz() -> list[npt.NDArray[np.complex128]]:
-    """Return the decomposed cz tensors.
+    """
+    Return the decomposed CZ tensors.
 
     This is an internal method.
 
-    CZ gate can be decomposed into two 3-rank tensors(Schmidt rank = 2).
-    Decomposing into low-rank tensors is important preprocessing for
-    the optimal contraction path searching problem.
-    So, in this backend, the DECOMPOSED_CZ gate is applied
-    instead of the original CZ gate.
+    The CZ gate can be decomposed into two 3-rank tensors (Schmidt rank = 2).
+    Decomposing into low-rank tensors is an important preprocessing step for
+    optimal contraction path searching. Therefore, in this backend, the
+    DECOMPOSED_CZ gate is applied instead of the original CZ gate.
 
-        Decomposing CZ gate
+    The decomposition of the CZ gate is illustrated as follows:
 
-        output            output
-        |    |           |      |
-       --------   SVD   ---    ---
-       |  CZ  |   -->   |L|----|R|
-       --------         ---    ---
-        |    |           |      |
-        input             input
+            output            output
+            |    |           |      |
+           --------   SVD   ---    ---
+           |  CZ  |   -->   |L|----|R|
+           --------         ---    ---
+            |    |           |      |
+            input             input
 
-    4-rank x1         3-rank x2
+    Returns
+    -------
+    list[npt.NDArray[np.complex128]]
+        A list containing the decomposed CZ tensors.
     """
     cz_ts = Tensor(
         Ops.CZ.reshape((2, 2, 2, 2)).astype(np.complex128),
@@ -591,27 +718,29 @@ class _AbstractTensorNetworkBackend(Backend[MBQCTensorNet], ABC):
 
 @dataclass(frozen=True)
 class TensorNetworkBackend(_AbstractTensorNetworkBackend):
-    """Tensor Network Simulator for MBQC.
+    """
+    Tensor Network Simulator for MBQC.
 
-    Executes the measurement pattern using TN expression of graph states.
+    Executes the measurement pattern using Tensor Network (TN) expressions of graph states.
 
     Parameters
     ----------
     pattern : graphix.Pattern
+        The measurement pattern to be executed.
     graph_prep : str
-        'parallel' :
-            Faster method for preparing a graph state.
-            The expression of a graph state can be obtained from the graph geometry.
-            See https://journals.aps.org/pra/abstract/10.1103/PhysRevA.76.052315 for detail calculation.
+        The method for preparing a graph state. Options include:
+        - 'parallel':
+            A faster method for preparing a graph state. The expression of a graph state can be obtained from the graph geometry.
+            Refer to https://journals.aps.org/pra/abstract/10.1103/PhysRevA.76.052315 for detailed calculations.
             Note that 'N' and 'E' commands in the measurement pattern are ignored.
-        'sequential' :
-            Sequentially execute N and E commands, strictly following the measurement pattern.
-            In this strategy, All N and E commands executed sequentially.
-        'auto'(default) :
-            Automatically select a preparation strategy based on the max degree of a graph
-    input_state : preparation for input states (only BasicStates.PLUS is supported for tensor networks yet),
-    branch_selector: :class:`graphix.branch_selector.BranchSelector`, optional
-        Branch selector to be used for measurements.
+        - 'sequential':
+            Executes 'N' and 'E' commands sequentially, strictly following the measurement pattern. All 'N' and 'E' commands are executed in this strategy.
+        - 'auto' (default):
+            Automatically selects a preparation strategy based on the maximum degree of the graph.
+    input_state : preparation for input states
+        Only BasicStates.PLUS is currently supported for tensor networks.
+    branch_selector : graphix.branch_selector.BranchSelector, optional
+        A branch selector to be used for measurements.
     """
 
     def __init__(
@@ -621,7 +750,28 @@ class TensorNetworkBackend(_AbstractTensorNetworkBackend):
         input_state: Data | None = None,
         branch_selector: BranchSelector | None = None,
     ) -> None:
-        """Construct a tensor network backend."""
+        """
+        Construct a tensor network backend.
+
+        Parameters
+        ----------
+        pattern : Pattern
+            The pattern that defines the structure of the tensor network.
+
+        graph_prep : str, optional
+            The method for preparing the tensor network graph.
+            Defaults to "auto".
+
+        input_state : Data, optional
+            The initial input state to be used in the tensor network.
+            If None, a default initial state will be used.
+            Defaults to None.
+
+        branch_selector : BranchSelector, optional
+            An optional selector for branches in the network.
+            If None, a default branch selector will be used.
+            Defaults to None.
+        """
         if input_state is None:
             input_state = BasicStates.PLUS
         elif input_state != BasicStates.PLUS:
@@ -680,15 +830,15 @@ class TensorNetworkBackend(_AbstractTensorNetworkBackend):
         ----------
         nodes : Sequence[int]
             A list of node indices to add to the backend. These indices can be any
-            integer values but must be fresh: each index must be distinct from all
-            previously added nodes.
+            integer values but must be distinct from all previously added nodes.
 
         data : Data, optional
-            The state in which to initialize the newly added nodes.
+            The state in which to initialize the newly added nodes. This parameter can be
+            either a single basic state or a list of basic states.
 
             - If a single basic state is provided, all new nodes are initialized in that state.
-            - If a list of basic states is provided, it must match the length of ``nodes``, and
-              each node is initialized with its corresponding state.
+            - If a list of basic states is provided, it must match the length of `nodes`,
+              and each node is initialized with its corresponding state.
 
         Notes
         -----
@@ -705,12 +855,13 @@ class TensorNetworkBackend(_AbstractTensorNetworkBackend):
 
     @override
     def entangle_nodes(self, edge: tuple[int, int]) -> None:
-        """Make entanglement between nodes specified by edge.
+        """
+        Make entanglement between the nodes specified by the given edge.
 
         Parameters
         ----------
         edge : tuple of int
-            edge specifies two target nodes of the CZ gate.
+            A tuple specifying the two target nodes of the CZ gate.
         """
         if self.graph_prep == "sequential":
             old_inds = [self.state._dangling[str(node)] for node in edge]
@@ -742,17 +893,26 @@ class TensorNetworkBackend(_AbstractTensorNetworkBackend):
 
     @override
     def measure(self, node: int, measurement: Measurement, rng: Generator | None = None) -> Outcome:
-        """Perform measurement of the node.
+        """
+        Perform measurement of a specified node in the tensor network.
 
-        In the context of tensornetwork, performing measurement equals to
-        applying measurement operator to the tensor. Here, directly contracted with the projected state.
+        In the context of tensor networks, performing a measurement involves
+        applying a measurement operator to the tensor, which is then directly
+        contracted with the projected state.
 
         Parameters
         ----------
         node : int
-            index of the node to measure
+            Index of the node to measure.
         measurement : Measurement
-            measure plane and angle
+            The measurement object that defines the measurement plane and angle.
+        rng : Generator, optional
+            A random number generator for stochastic processes. If None, a default generator is used.
+
+        Returns
+        -------
+        Outcome
+            The outcome of the measurement process, encapsulating the results of the measurement.
         """
         if node in self._isolated_nodes:
             vector: npt.NDArray[np.complex128] = self.state.get_open_tensor_from_index(node)
@@ -776,15 +936,16 @@ class TensorNetworkBackend(_AbstractTensorNetworkBackend):
 
     @override
     def correct_byproduct(self, cmd: command.X | command.Z, measure_method: MeasureMethod) -> None:
-        """Perform byproduct correction.
+        """
+        Perform byproduct correction.
 
         Parameters
         ----------
-        cmd : list
-            Byproduct command
-            i.e. ['X' or 'Z', node, signal_domain]
+        cmd : command.X | command.Z
+            Byproduct command, which can be either 'X' or 'Z', along with the corresponding
+            node and signal domain.
         measure_method : MeasureMethod
-            The measure method to use
+            The measurement method to use for correction.
         """
         if sum(measure_method.get_measure_result(j) for j in cmd.domain) % 2 == 1:
             op = Ops.X if isinstance(cmd, command.X) else Ops.Z
@@ -792,38 +953,64 @@ class TensorNetworkBackend(_AbstractTensorNetworkBackend):
 
     @override
     def apply_clifford(self, node: int, clifford: Clifford) -> None:
-        """Apply single-qubit Clifford gate.
+        """
+        Apply a single-qubit Clifford gate to the specified node.
 
         Parameters
         ----------
-        cmd : list
-            clifford command.
-            See https://arxiv.org/pdf/2212.11975.pdf for the detail.
+        node : int
+            The index of the node to which the Clifford gate will be applied.
+        clifford : Clifford
+            The Clifford gate to be applied. For details on the Clifford gates,
+            see https://arxiv.org/pdf/2212.11975.pdf.
         """
         self.state.evolve_single(node, clifford.matrix)
 
     @override
     def finalize(self, output_nodes: Iterable[int]) -> None:
-        """Do nothing."""
+        """
+        Finalize the tensor network backend.
+
+        Parameters
+        ----------
+        output_nodes : iterable of int
+            A collection of output node indices to be processed.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This method currently does not perform any actions.
+        """
 
 
 def gen_str() -> str:
-    """Generate dummy string for einsum."""
+    """
+    Generate a dummy string for einsum.
+
+    Returns
+    -------
+    str
+        A dummy string representation suitable for einsum operations.
+    """
     return qtn.rand_uuid()
 
 
 def outer_product(vectors: Sequence[npt.NDArray[np.complex128]]) -> npt.NDArray[np.complex128]:
-    """Return the outer product of the given vectors.
+    """
+    Return the outer product of the given vectors.
 
     Parameters
     ----------
-    vectors : list of vector
-        vectors
+    vectors : Sequence[npt.NDArray[np.complex128]]
+        A sequence of vectors for which the outer product is to be computed.
 
     Returns
     -------
-    numpy.ndarray :
-        tensor object.
+    npt.NDArray[np.complex128]
+        The resulting outer product as a tensor object.
     """
     subscripts = string.ascii_letters[: len(vectors)]
     subscripts = ",".join(subscripts) + "->" + subscripts
