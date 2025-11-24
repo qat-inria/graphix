@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from graphix.simulator import MeasureMethod
 
 
-class PercevalState():
+class PercevalState:
     """Perceval state wrapper for Graphix."""
 
     state: pcvl.StateVector
@@ -114,7 +114,7 @@ class PercevalBackend(PercevalState):
         perceval_state: pcvl.State
     """
 
-    state: PercevalState = dataclasses.field(init=False, default_factory=lambda: PercevalState(nqubit=0))
+    state: PercevalState = dataclasses.field(init=False, default_factory=lambda: PercevalState())
     node_index: NodeIndex = dataclasses.field(default_factory=NodeIndex)
 
     def add_nodes(self, nodes: Sequence[int], data: Data = BasicStates.PLUS) -> None:
