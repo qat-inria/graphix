@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from graphix.simulator import MeasureMethod
 
 
-class PercevalState(DenseState):
+class PercevalState():
     """Perceval state wrapper for Graphix."""
 
     state: pcvl.StateVector
@@ -97,7 +97,7 @@ class PercevalState(DenseState):
 
 
 @dataclass(frozen=True)
-class PercevalBackend(DenseStateBackend[PercevalState]):
+class PercevalBackend(PercevalState):
     """Perceval simulator backend for Graphix.
 
     Ref: https://github.com/Quandela/Perceval
