@@ -42,6 +42,7 @@ def test_init_success(hadamardpattern: Pattern, source: Source, fx_rng: Generato
     vec = PercevalState(source=source)
     assert np.allclose(vec.state, backend.state.state)
 
+
 @pytest.mark.parametrize("source", SOURCES)
 def test_init_fail(hadamardpattern, source: Source, fx_rng: Generator) -> None:
     rand_angle = fx_rng.random(2) * 2 * np.pi
@@ -51,8 +52,9 @@ def test_init_fail(hadamardpattern, source: Source, fx_rng: Generator) -> None:
     with pytest.raises(ValueError):
         PercevalBackend(source).add_nodes(hadamardpattern.input_nodes, data=[state, state2])
 
+
 @pytest.mark.parametrize("source", SOURCES)
-def test_deterministic_measure_one(fx_rng: Generator):
+def test_deterministic_measure_one(source: Source, fx_rng: Generator):
     # plus state & zero state (default), but with tossed coins
     for _ in range(10):
         backend = PercevalBackend(source)
@@ -69,6 +71,7 @@ def test_deterministic_measure_one(fx_rng: Generator):
         node_to_measure = backend.node_index[0]
         result = backend.measure(node=node_to_measure, measurement=measurement)
         assert result == expected_result
+
 
 @pytest.mark.parametrize("source", SOURCES)
 def test_deterministic_measure(source: Source):
@@ -87,6 +90,7 @@ def test_deterministic_measure(source: Source):
         result = backend.measure(node=node_to_measure, measurement=measurement)
         assert result == 0
         assert list(backend.node_index) == list(range(1, n_neighbors + 1))
+
 
 @pytest.mark.parametrize("source", SOURCES)
 def test_deterministic_measure_many(source: Source):
@@ -115,6 +119,7 @@ def test_deterministic_measure_many(source: Source):
             result = backend.measure(node=node_to_measure, measurement=measurement)
             assert result == 0
         assert list(backend.node_index) == list(range(n_traps, n_neighbors + n_traps + n_whatever))
+
 
 @pytest.mark.parametrize("source", SOURCES)
 def test_deterministic_measure_with_coin(source: Source, fx_rng: Generator):
