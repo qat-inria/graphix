@@ -131,7 +131,7 @@ class PercevalBackend(PercevalState):
             nodes: A list of node indices to add to the backend.
             data: The state in which to initialize the newly added nodes. The supported forms of state specification depend on the backend implementation.
         """
-        zero_mixed_state: pcvl.SVDistribution = self.state._source.generate_distribution(pcvl.BasicState([1, 0]))
+        zero_mixed_state: pcvl.SVDistribution = self.state.source.generate_distribution(pcvl.BasicState([1, 0]))
         # path-encoded |0> state
 
         # Here we explicitely choose not to deal with mixed states by sampling a single input state from the distribution above.
