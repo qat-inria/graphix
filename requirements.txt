@@ -3,6 +3,7 @@ networkx
 numpy>=2,<3
 opt_einsum
 quimb
+perceval-quandela
 scipy
 sympy
 typing_extensions
