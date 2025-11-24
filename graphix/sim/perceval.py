@@ -95,6 +95,10 @@ class PercevalState:
         self.sim.set_circuit(op)
         self.state = self.sim.evolve(self.state)
 
+    def set_source(self, source: pcvl.Source) -> None:
+        """Set the Perceval source."""
+        self.source = source
+
 
 @dataclass(frozen=True)
 class PercevalBackend(PercevalState):
@@ -114,7 +118,10 @@ class PercevalBackend(PercevalState):
         perceval_state: pcvl.State
     """
 
-    state: PercevalState = dataclasses.field(init=False, default_factory=lambda: PercevalState())
+    state: PercevalState = dataclasses.field(init=False,
+                                             default_factory=lambda: PercevalState(source=pcvl.Source(emission_probability=1,
+                                                                                    multiphoton_component=0,
+                                                                                    indistinguishability=1)))
     node_index: NodeIndex = dataclasses.field(default_factory=NodeIndex)
 
     def add_nodes(self, nodes: Sequence[int], data: Data = BasicStates.PLUS) -> None:
@@ -272,6 +279,10 @@ class PercevalBackend(PercevalState):
                         ),
                     )
             self.state.evolve(perm_circ)
+
+    def set_source(self, source: pcvl.Source) -> None:
+        """Set the Perceval source."""
+        self.state.set_source(source)
 
     def finalize(self, output_nodes: Iterable[int]) -> None:
         """To be run at the end of pattern simulation."""
