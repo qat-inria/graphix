@@ -28,7 +28,6 @@ if sys.version_info >= (3, 10):
         | Iterable[State]
         | Iterable[ExpressionOrSupportsComplex]
         | Iterable[Iterable[ExpressionOrSupportsComplex]]
-        | StateVector
     )
 else:
     from typing import Union
@@ -40,5 +39,4 @@ else:
         Iterable[State],
         Iterable[ExpressionOrSupportsComplex],
         Iterable[Iterable[ExpressionOrSupportsComplex]],
-        StateVector,
     ]

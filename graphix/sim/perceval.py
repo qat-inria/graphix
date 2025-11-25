@@ -139,19 +139,19 @@ class PercevalBackend(PercevalState):
         # This is done because perceval does not (for now) handle measurements on SVDistribution (mixed states).
         # Those cannot be translated to DensityMatrix objects (which can be measured) since DensityMatrix does not handle distinguishable photons (yet).
         # One solution would be to manually implement measurements on SVDistributions.
-        init_qubit: list[pcvl.StateVector] = zero_mixed_state.sample(1)[0]
+        init_qubit: pcvl.StateVector = zero_mixed_state.sample(1)[0]
 
         # recover amplitudes of input state
         statevector: npt.NDArray[np.complex128] = data.get_statevector()
-        alpha: float = statevector[0]
-        beta: float = statevector[1]
+        alpha: np.complex128 = statevector[0]
+        beta: np.complex128 = statevector[1]
 
         if np.abs(beta) != 0:  # if beta = 0, the input is already |0>, no need to do anything
             # construct unitary matrix taking |0> to the state psi
-            gamma = np.abs(beta)
-            delta = -np.conjugate(alpha) * gamma / np.conjugate(beta)
-            matrix = pcvl.MatrixN(np.asarray([[alpha, gamma], [beta, delta]]))
-            init_circ = pcvl.Circuit(2)
+            gamma: float = np.abs(beta)
+            delta: complex = -np.conjugate(alpha) * gamma / np.conjugate(beta)
+            matrix: pcvl.MatrixN = pcvl.MatrixN(np.asarray([[alpha, gamma], [beta, delta]]))
+            init_circ: pcvl.Circuit = pcvl.Circuit(2)
             init_circ.add(0, pcvl.components.Unitary(U=matrix))
             self.state.sim.set_circuit(init_circ)
             init_qubit = self.state.sim.evolve(init_qubit)
@@ -183,7 +183,7 @@ class PercevalBackend(PercevalState):
         measurement: Measurement
         """
         index: int = self.node_index.index(node)
-        meas_circ = pcvl.Circuit(2 * self.nqubit)
+        meas_circ: pcvl.Circuit = pcvl.Circuit(2 * self.nqubit)
         if measurement.angle is float:
             angle: pcvl.Parameter | float = measurement.angle
         else:
