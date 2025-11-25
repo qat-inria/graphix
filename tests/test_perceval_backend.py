@@ -7,8 +7,6 @@ import pytest
 from perceval import Source  # type: ignore  # noqa: PGH003
 
 from graphix.fundamentals import Plane
-from graphix.measurements import Measurement
-from graphix.pauli import Pauli
 from graphix.sim.perceval import PercevalBackend, PercevalState
 from graphix.states import PlanarState
 
@@ -34,7 +32,7 @@ SOURCES: list[Source] = [Source(emission_probability=1,
                 indistinguishability=0.9)]
 
 
-@pytest.mark.parametrize("p_source", SOURCES)
+@pytest.mark.parametrize("source", SOURCES)
 def test_init_success(hadamardpattern: Pattern, source: Source) -> None:
     """Test that the PercevalBackend can be initialized successfully."""
     backend = PercevalBackend()
