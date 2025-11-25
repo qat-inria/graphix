@@ -1,10 +1,12 @@
-from perceval.processor import Processor
+from perceval.components.abstract_processor import AProcessor
+from perceval.components.experiment import Experiment
+from perceval.components.linear_circuit import ACircuit, Circuit
+from perceval.components.processor import Processor
+from perceval.components.sources import Source
 from perceval.utils.matrix import Matrix
 
-from .sources import Source  # noqa: F401, TID252
-
 class Unitary:
-    def __init__(self, matrix: Matrix) -> None: ...
+    def __init__(self, U: Matrix, name: str | None, use_polarization: bool = False) -> None: ...  # noqa: N803
 
 class PS:
     def __init__(self, phase: float) -> None: ...
@@ -21,8 +23,5 @@ class Catalog:
 
 class CatalogItem:
     def build_processor(self) -> Processor: ...
-
-class Circuit:
-    def __init__(self, m: int, name: str | None) -> None: ...
 
 catalog = Catalog("perceval.components.core_catalog")

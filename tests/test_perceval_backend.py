@@ -16,21 +16,13 @@ if TYPE_CHECKING:
 
     from graphix.pattern import Pattern
 
-SOURCES: list[Source] = [Source(emission_probability=1,
-                multiphoton_component=0,
-                indistinguishability=1),
-            Source(emission_probability=0.9,
-                multiphoton_component=0,
-                indistinguishability=1),
-            Source(emission_probability=1.0,
-                multiphoton_component=0,
-                indistinguishability=0.9),
-            Source(emission_probability=1.0,
-                multiphoton_component=0.1,
-                indistinguishability=1.0),
-            Source(emission_probability=0.9,
-                multiphoton_component=0.1,
-                indistinguishability=0.9)]
+SOURCES: list[Source] = [
+    Source(emission_probability=1, multiphoton_component=0, indistinguishability=1),
+    Source(emission_probability=0.9, multiphoton_component=0, indistinguishability=1),
+    Source(emission_probability=1.0, multiphoton_component=0, indistinguishability=0.9),
+    Source(emission_probability=1.0, multiphoton_component=0.1, indistinguishability=1.0),
+    Source(emission_probability=0.9, multiphoton_component=0.1, indistinguishability=0.9),
+]
 
 
 @pytest.mark.parametrize("source", SOURCES)

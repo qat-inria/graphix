@@ -1,4 +1,4 @@
-from perceval.states import BasicState, StateVector
+from perceval.utils.states import BasicState, StateVector
 
 class SVDistribution:
     def __init__(self, state_vector: StateVector) -> None: ...

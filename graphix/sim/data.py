@@ -12,7 +12,6 @@ from __future__ import annotations
 import sys
 from collections.abc import Iterable
 
-from perceval import StateVector
 from typing_extensions import TypeAlias  # TypeAlias introduced in Python 3.10
 
 from graphix.parameter import ExpressionOrSupportsComplex

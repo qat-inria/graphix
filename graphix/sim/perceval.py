@@ -13,8 +13,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import perceval as pcvl
-from perceval.components import Catalog
+from perceval.backends import BackendFactory
+from perceval.backends._slos import SLOSBackend
+from perceval.components import Catalog, Circuit, Processor, Source  # type: ignore[reportAttributeAccessIssue]
 from perceval.simulators import Simulator
+from perceval.utils.states import BasicState, StateVector, SVDistribution
 
 from graphix.command import CommandKind
 from graphix.fundamentals import Plane
@@ -38,22 +41,22 @@ if TYPE_CHECKING:
 class PercevalState:
     """Perceval state wrapper for Graphix."""
 
-    state: pcvl.StateVector
-    source: pcvl.Source
+    source: Source
+    state: StateVector
     sim: Simulator
 
-    def __init__(self, source: pcvl.Source, perceval_state: pcvl.StateVector = pcvl.BasicState) -> None:
+    def __init__(self, source: Source, perceval_state: StateVector) -> None:
         self.state = perceval_state
         self.source = source
         # Statevec.__init__(Statevec(nqubit=0))
-        self.sim: Simulator = Simulator(pcvl.BackendFactory.get_backend("SLOS"))
+        self.sim: Simulator = Simulator(SLOSBackend)
         self.sim.set_min_detected_photons_filter(0)
         self.sim.keep_heralds(False)
 
     @property
     def nqubit(self) -> int:
         """Return the number of qubits of the current state."""
-        return int(self.state.m / 2)
+        return int(self.state.m / 2)  # type: ignore[attr-defined]
 
     def entangle(self, edge: tuple[int, int]) -> None:
         """Apply CZ gate to two connected nodes.
@@ -69,22 +72,22 @@ class PercevalState:
         # We construct the circuit via the Processor class since this class applies
         # the correct permutation before and after to place CZ at correct modes
         # (while the Circuit class does not and returns an error if the modes are not contiguous)
-        ent_proc: pcvl.Processor = pcvl.Processor("SLOS", 2 * self.nqubit)
+        ent_proc: Processor = Processor(SLOSBackend, 2 * self.nqubit, noise=None, name="Local processor")  # type: ignore[arg-type]
         catalog = Catalog("perceval.components.core_catalog")
         ent_proc.add(cz_input_modes, catalog["heralded cz"].build_processor())
-        ent_circ: pcvl.Circuit = ent_proc.linear_circuit()
+        ent_circ: Circuit = ent_proc.linear_circuit()
         self.sim.set_circuit(ent_circ)
 
         # the first 2n modes store the state, the last modes are heralds (1 photon in 2 modes for each CZ gate)
-        heralds: dict[int, int] = dict.fromkeys(list(range(2 * self.nqubit, ent_circ.m)), 1)
+        heralds: dict[int, int] = dict.fromkeys(list(range(2 * self.nqubit, ent_proc.circuit_size)), 1)
         self.sim.set_heralds(heralds)
-        herald_state: pcvl.SVDistribution = self.source.generate_distribution(pcvl.BasicState([1, 1]))
+        herald_state: SVDistribution = self.source.generate_distribution(BasicState([1, 1]))  # type: ignore[arg-type]
         # Here we again explicitely choose not to deal with mixed states
         sampled_herald_state = herald_state.sample(1)[0]
         self.state = self.sim.evolve(self.state * sampled_herald_state)
         self.sim.clear_heralds()
 
-    def evolve(self, op: pcvl.Circuit) -> None:
+    def evolve(self, op: Circuit) -> None:
         """Evolve the state with a circuit.
 
         Parameters
@@ -95,7 +98,7 @@ class PercevalState:
         self.sim.set_circuit(op)
         self.state = self.sim.evolve(self.state)
 
-    def set_source(self, source: pcvl.Source) -> None:
+    def set_source(self, source: Source) -> None:
         """Set the Perceval source."""
         self.source = source
 
@@ -118,10 +121,13 @@ class PercevalBackend(PercevalState):
         perceval_state: pcvl.State
     """
 
-    state: PercevalState = dataclasses.field(init=False,
-                                             default_factory=lambda: PercevalState(source=pcvl.Source(emission_probability=1,
-                                                                                    multiphoton_component=0,
-                                                                                    indistinguishability=1)))
+    state: PercevalState = dataclasses.field(
+        init=False,
+        default_factory=lambda: PercevalState(
+            source=pcvl.Source(emission_probability=1, multiphoton_component=0, indistinguishability=1),
+            perceval_state=BasicState(),
+        ),
+    )
     node_index: NodeIndex = dataclasses.field(default_factory=NodeIndex)
 
     def add_nodes(self, nodes: Sequence[int], data: Data = BasicStates.PLUS) -> None:
@@ -131,7 +137,7 @@ class PercevalBackend(PercevalState):
             nodes: A list of node indices to add to the backend.
             data: The state in which to initialize the newly added nodes. The supported forms of state specification depend on the backend implementation.
         """
-        zero_mixed_state: pcvl.SVDistribution = self.state.source.generate_distribution(pcvl.BasicState([1, 0]))
+        zero_mixed_state: SVDistribution = self.state.source.generate_distribution(BasicState([1, 0]))  # type: ignore[attr-defined]
         # path-encoded |0> state
 
         # Here we explicitely choose not to deal with mixed states by sampling a single input state from the distribution above.
@@ -139,7 +145,7 @@ class PercevalBackend(PercevalState):
         # This is done because perceval does not (for now) handle measurements on SVDistribution (mixed states).
         # Those cannot be translated to DensityMatrix objects (which can be measured) since DensityMatrix does not handle distinguishable photons (yet).
         # One solution would be to manually implement measurements on SVDistributions.
-        init_qubit: pcvl.StateVector = zero_mixed_state.sample(1)[0]
+        init_qubit: StateVector = zero_mixed_state.sample(1)[0]
 
         # recover amplitudes of input state
         statevector: npt.NDArray[np.complex128] = data.get_statevector()
