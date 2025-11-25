@@ -1,4 +1,6 @@
 from perceval.backends._abstract_backends import AStrongSimulationBackend  # noqa: PLC2701
+from perceval.components.linear_circuit import ACircuit
 
 class SLOSBackend(AStrongSimulationBackend):
     def __init__(self, mask: str | list[str] | None, use_symbolic: bool = False) -> None: ...
+    def set_circuit(self, circuit: ACircuit) -> None: ...

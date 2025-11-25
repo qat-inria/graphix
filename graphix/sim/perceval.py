@@ -8,6 +8,7 @@ Ref: https://github.com/Quandela/Perceval.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -15,17 +16,21 @@ import numpy as np
 import perceval as pcvl
 from perceval.backends import BackendFactory
 from perceval.backends._slos import SLOSBackend
-from perceval.components import Catalog, Circuit, Processor, Source  # type: ignore[reportAttributeAccessIssue]
+from perceval.components import Catalog, Circuit, Processor, Source, Unitary  # type: ignore[reportAttributeAccessIssue]
 from perceval.simulators import Simulator
+from perceval.utils.matrix import Matrix, MatrixN
 from perceval.utils.states import BasicState, StateVector, SVDistribution
 
 from graphix.command import CommandKind
 from graphix.fundamentals import Plane
+from graphix.parameter import ExpressionOrSupportsComplex
 from graphix.sim.base_backend import NodeIndex
-from graphix.states import BasicStates
+from graphix.sim.density_matrix import DensityMatrix
+from graphix.sim.statevec import Statevec
+from graphix.states import BasicStates, State
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Sequence
     from typing import Literal
 
     import numpy.typing as npt
@@ -146,7 +151,8 @@ class PercevalBackend(PercevalState):
         # Those cannot be translated to DensityMatrix objects (which can be measured) since DensityMatrix does not handle distinguishable photons (yet).
         # One solution would be to manually implement measurements on SVDistributions.
         init_qubit: StateVector = zero_mixed_state.sample(1)[0]
-
+        if type(data) is (Statevec | DensityMatrix | Iterable[State] | Iterable[ExpressionOrSupportsComplex] | Iterable[Iterable[ExpressionOrSupportsComplex]]):
+            raise ValueError("Unsupported state type for PercevalBackend")
         # recover amplitudes of input state
         statevector: npt.NDArray[np.complex128] = data.get_statevector()
         alpha: np.complex128 = statevector[0]
@@ -156,10 +162,10 @@ class PercevalBackend(PercevalState):
             # construct unitary matrix taking |0> to the state psi
             gamma: float = np.abs(beta)
             delta: complex = -np.conjugate(alpha) * gamma / np.conjugate(beta)
-            matrix: pcvl.MatrixN = pcvl.MatrixN(np.asarray([[alpha, gamma], [beta, delta]]))
-            init_circ: pcvl.Circuit = pcvl.Circuit(2)
-            init_circ.add(0, pcvl.components.Unitary(U=matrix))
-            self.state.sim.set_circuit(init_circ)
+            matrix: MatrixN = MatrixN(np.asarray([[alpha, gamma], [beta, delta]]))
+            init_circ: Circuit = Circuit(2)
+            init_circ.add(0, Unitary(U=matrix, name="init", use_polarization=False))
+            self.state.sim.set_circuit(circuit=init_circ)
             init_qubit = self.state.sim.evolve(init_qubit)
 
         self.state.state *= init_qubit
