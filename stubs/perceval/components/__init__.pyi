@@ -22,4 +22,7 @@ class Catalog:
 class CatalogItem:
     def build_processor(self) -> Processor: ...
 
+class Circuit:
+    def __init__(self, m: int, name: str | None) -> None: ...
+
 catalog = Catalog("perceval.components.core_catalog")

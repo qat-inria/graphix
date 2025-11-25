@@ -11,6 +11,7 @@ from graphix.sim.perceval import PercevalBackend, PercevalState
 from graphix.states import PlanarState
 
 if TYPE_CHECKING:
+    import numpy.typing as npt
     from numpy.random import Generator
 
     from graphix.pattern import Pattern
@@ -44,8 +45,8 @@ def test_init_success(hadamardpattern: Pattern, source: Source) -> None:
 
 @pytest.mark.parametrize("source", SOURCES)
 def test_init_fail(hadamardpattern: Pattern, source: Source, fx_rng: Generator) -> None:
-    rand_angle: np.ndarray = fx_rng.random(2) * 2 * np.pi
-    rand_plane: np.ndarray = fx_rng.choice(np.array(Plane), 2)
+    rand_angle: npt.NDArray[np.float64] = fx_rng.random(2) * 2 * np.pi
+    rand_plane: npt.NDArray[np.float64] = fx_rng.choice(np.array(Plane), 2)
     state: PlanarState = PlanarState(rand_plane[0], rand_angle[0])
     state2: PlanarState = PlanarState(rand_plane[1], rand_angle[1])
     backend: PercevalBackend = PercevalBackend()

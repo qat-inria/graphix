@@ -16,7 +16,7 @@ import perceval as pcvl
 from perceval.components import Catalog
 from perceval.simulators import Simulator
 
-from graphix.command import Command, CommandKind
+from graphix.command import CommandKind
 from graphix.fundamentals import Plane
 from graphix.sim.base_backend import NodeIndex
 from graphix.states import BasicStates
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     import numpy.typing as npt
     from numpy.random import Generator
 
+    from graphix import command
     from graphix.clifford import Clifford
     from graphix.measurements import Measurement, Outcome
     from graphix.sim.data import Data
@@ -239,7 +240,7 @@ class PercevalBackend(PercevalState):
         self.node_index.remove(node)
         return result
 
-    def correct_byproduct(self, cmd: Command, measure_method: MeasureMethod) -> None:
+    def correct_byproduct(self, cmd: command.X | command.Z, measure_method: MeasureMethod) -> None:
         """Byproduct correction correct for the X or Z byproduct operators, by applying the X or Z gate."""
         if np.mod(sum(measure_method.get_measure_result(j) for j in cmd.domain), 2) == 1:
             index: int = self.node_index.index(cmd.node)
