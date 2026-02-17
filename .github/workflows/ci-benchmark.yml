@@ -7,6 +7,9 @@ on:
         description: "Enable pip/uv caching (disable for clean benchmarks)"
         type: boolean
         default: false
+  push:
+    branches:
+      - uv-ci-test
 
 # Prevent concurrent benchmark runs from skewing results
 concurrency:
