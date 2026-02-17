@@ -6,7 +6,7 @@ on:
       use_cache:
         description: "Enable pip/uv caching (disable for clean benchmarks)"
         type: boolean
-        default: false
+        default: true
   push:
     branches:
       - uv-ci-test
